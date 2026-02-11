@@ -1,0 +1,6 @@
+.env
+node_modules/
+student_details.xlsx
+students_marks.csv
+students_marks.xlsx
+Deployment status.txt

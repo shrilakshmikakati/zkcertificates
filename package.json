@@ -1,0 +1,50 @@
+{
+  "name": "zk-proof-certificates",
+  "version": "1.0.0",
+  "description": "Privacy-preserving bulk degree certificate generation and verification system using Zero-Knowledge Proofs",
+  "main": "index.js",
+  "scripts": {
+    "compile-circuits": "cd circuits && circom certificate.circom --r1cs --wasm --sym",
+    "setup-ptau": "cd circuits && snarkjs powersoftau new bn128 14 pot14_0000.ptau && snarkjs powersoftau contribute pot14_0000.ptau pot14_0001.ptau --name=\"First contribution\" -e=\"random text\" && snarkjs powersoftau prepare phase2 pot14_0001.ptau pot14_final.ptau -v",
+    "generate-keys": "cd circuits && snarkjs groth16 setup certificate.r1cs pot14_final.ptau certificate_0000.zkey && snarkjs zkey contribute certificate_0000.zkey certificate_0001.zkey --name=\"First contribution\" -e=\"Another random text\" && snarkjs zkey export verificationkey certificate_0001.zkey verification_key.json",
+    "compile": "hardhat compile",
+    "test": "hardhat test",
+    "node": "hardhat node",
+    "deploy": "hardhat run scripts/deploy.js --network localhost",
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev:backend": "cd backend && npm run dev",
+    "dev:frontend": "cd frontend && npm run dev",
+    "build:frontend": "cd frontend && npm run build",
+    "start:all": "concurrently \"npm run node\" \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "clean": "hardhat clean && rm -rf artifacts cache"
+  },
+  "keywords": [
+    "zero-knowledge",
+    "blockchain",
+    "certificates",
+    "privacy",
+    "zk-proofs",
+    "merkle-tree"
+  ],
+  "author": "ZK Certificate Team",
+  "license": "MIT",
+  "devDependencies": {
+    "@nomiclabs/hardhat-ethers": "^2.0.6",
+    "@nomiclabs/hardhat-waffle": "^2.0.3",
+    "@openzeppelin/hardhat-upgrades": "^1.21.0",
+    "hardhat": "^2.9.9",
+    "hardhat-tracer": "^1.2.0",
+    "concurrently": "^7.6.0",
+    "chai": "^4.3.6",
+    "ethereum-waffle": "^3.4.4"
+  },
+  "dependencies": {
+    "@openzeppelin/contracts": "^4.7.3",
+    "circomlib": "^2.0.5",
+    "snarkjs": "^0.4.27",
+    "merkletreejs": "^0.2.32",
+    "ethers": "^5.7.0",
+    "csv-parser": "^3.0.0",
+    "crypto": "^1.0.1"
+  }
+}

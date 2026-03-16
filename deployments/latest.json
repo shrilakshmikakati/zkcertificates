@@ -1,19 +1,20 @@
 {
   "network": "unknown",
-  "deployer": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
-  "timestamp": "2026-02-09T08:10:27.948Z",
+  "deployer": "0x59b7311F897f4Fbc607fa1B0042ea46Bf10fa655",
+  "timestamp": "2026-02-12T12:29:32.900Z",
   "contracts": {
     "CertificateRegistry": {
-      "address": "0x5FbDB2315678afecb367f032d93F642f64180aa3",
-      "transactionHash": "0x2450ccf7d3b82ff6ae85a2f867b18e11fd4ef41e8fb110d44aaf46e8e586ddb2"
+      "address": "0x75B4EA22BaAF231C0e6d8a4eCE8d8E3188E76E2b",
+      "transactionHash": "0xbc0f4ad1cc6a8220dd6a348197820fe6dc840ecc937cb26b8de5f9d4514c8ab1"
     },
-    "Verifier": {
-      "address": "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512",
-      "transactionHash": "0x9ebf933817a9a93525c57fe1f61729123246ee39a39bc012b9d0e45785afea82"
+    "CertificateVerifier": {
+      "address": "0xAF7ab7d4161267c13fb892803Cb46355C2cB287e",
+      "transactionHash": "0x008e4460e07a64edbf5ecfc79658bb6586ed319ecdb9f46a7f23f39907d3d5df",
+      "type": "Groth16_ZK_Verifier"
     },
     "ZKCertificateSystem": {
-      "address": "0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0",
-      "transactionHash": "0x3767c20feb168578bcb9cd02c861277c2932d769b7569736bb0a340f086919a9"
+      "address": "0x18ae7a16e0cC2045C0E15882BCC11a40ceC7A093",
+      "transactionHash": "0x413ff1899a1652288adb423307b1b02f88e6154461473e294acbb8a1be9f3d7c"
     }
   }
 }

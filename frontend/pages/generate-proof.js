@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Layout from '../src/components/Layout';
 
@@ -6,6 +6,30 @@ export default function GenerateProof() {
   const router = useRouter();
   const [uploadedFile, setUploadedFile] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [dashboardStats, setDashboardStats] = useState(null);
+  const [fieldSuggestions, setFieldSuggestions] = useState([]);
+
+  useEffect(() => {
+    fetchDashboardStats();
+  }, []);
+
+  const fetchDashboardStats = async () => {
+    try {
+      const response = await fetch('http://localhost:3001/api/workflow/dashboard-stats');
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && !data.data.isEmpty) {
+          setDashboardStats(data.data);
+          // Generate field suggestions from actual uploaded data
+          if (data.data.columns) {
+            setFieldSuggestions(data.data.columns);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch dashboard stats:', error);
+    }
+  };
 
   const handleFileUpload = (event) => {
     const file = event.target.files[0];
@@ -123,16 +147,46 @@ export default function GenerateProof() {
                 </div>
 
                 <div className="mt-8 bg-blue-50 p-4 rounded-lg text-left">
-                  <h4 className="font-semibold text-blue-800 mb-2">Expected CSV/Excel Columns:</h4>
-                  <ul className="text-sm text-blue-700 space-y-1">
-                    <li>• <strong>name</strong> - Student full name (Required)</li>
-                    <li>• <strong>student_id</strong> - Student ID or roll number (Recommended)</li>
-                    <li>• <strong>email</strong> - Student email address (Recommended)</li>
-                    <li>• <strong>percentage/score/marks</strong> - Score in percentage or points (Recommended)</li>
-                  </ul>
-                  <p className="text-xs text-blue-600 mt-2">
-                    After upload, you'll verify all student data before proceeding to certificate generation.
-                  </p>
+                  {fieldSuggestions.length > 0 ? (
+                    <>
+                      <h4 className="font-semibold text-blue-800 mb-2">Detected from Previous Uploads:</h4>
+                      <ul className="text-sm text-blue-700 space-y-1">
+                        {fieldSuggestions.map((field, index) => (
+                          <li key={index}>• <strong>{field}</strong></li>
+                        ))}
+                      </ul>
+                      <p className="text-xs text-blue-600 mt-2">
+                        Your file can have different column names. Smart mapping will automatically detect the best matches.
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <h4 className="font-semibold text-blue-800 mb-2">Expected CSV/Excel Columns:</h4>
+                      <ul className="text-sm text-blue-700 space-y-1">
+                        <li>• <strong>name</strong> - Student full name (Required)</li>
+                        <li>• <strong>student_id</strong> - Student ID or roll number (Recommended)</li>
+                        <li>• <strong>email</strong> - Student email address (Recommended)</li>
+                        <li>• <strong>percentage/score/marks</strong> - Score in percentage or points (Recommended)</li>
+                      </ul>
+                      <p className="text-xs text-blue-600 mt-2">
+                        After upload, you'll verify all student data before proceeding to certificate generation.
+                      </p>
+                    </>
+                  )}
+                  {dashboardStats && !dashboardStats.isEmpty && (
+                    <div className="mt-4 pt-2 border-t border-blue-200">
+                      {dashboardStats.isDemo ? (
+                        <p className="text-xs text-yellow-700 bg-yellow-50 p-2 rounded border border-yellow-200">
+                          <strong>Currently showing demo data:</strong> {dashboardStats.totalStudents} students from "{dashboardStats.fileName}"
+                          <br />Upload your own CSV file below to replace this with your actual data
+                        </p>
+                      ) : (
+                        <p className="text-xs text-blue-600">
+                          <strong>Current Data:</strong> {dashboardStats.totalStudents} students with {dashboardStats.dataColumns} columns from "{dashboardStats.fileName}"
+                        </p>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

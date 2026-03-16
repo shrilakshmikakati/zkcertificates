@@ -5,23 +5,26 @@ class MerkleService {
     /**
      * Build Merkle tree from certificate commitments
      * @param {Array} certificates - Array of certificate objects with commitments
+     * @param {string} commitmentField - Field name containing the commitment hash ('commitment', 'preCommitment', 'finalCommitment')
      * @returns {MerkleTree} - Constructed Merkle tree
      */
-    static buildMerkleTree(certificates) {
+    static buildMerkleTree(certificates, commitmentField = 'commitment') {
         if (!certificates || certificates.length === 0) {
             throw new Error('Cannot build Merkle tree from empty certificates array');
         }
 
         // Extract commitment hashes as leaves
         const leaves = certificates.map(cert => {
-            if (!cert.commitment) {
-                throw new Error('Certificate missing commitment hash');
+            const commitmentHash = cert[commitmentField];
+            if (!commitmentHash) {
+                throw new Error(`Certificate missing ${commitmentField} hash`);
             }
-            return Buffer.from(cert.commitment, 'hex');
+            return Buffer.from(commitmentHash, 'hex');
         });
 
         // Create Merkle tree using SHA-256
-        const merkleTree = new MerkleTree(leaves, crypto.createHash, {
+        const hashFunction = (data) => crypto.createHash('sha256').update(data).digest();
+        const merkleTree = new MerkleTree(leaves, hashFunction, {
             hashLeaves: false, // Leaves are already hashed
             sortPairs: true,   // Sort pairs for consistent tree structure
             duplicateOdd: true // Duplicate odd nodes to balance tree
@@ -64,7 +67,8 @@ class MerkleService {
                 position: 'left' // This would need position info in real implementation
             }));
 
-            return MerkleTree.verify(proofElements, leaf, root, crypto.createHash);
+            const hashFunction = (data) => crypto.createHash('sha256').update(data).digest();
+            return MerkleTree.verify(proofElements, leaf, root, hashFunction);
         } catch (error) {
             console.error('Merkle proof verification error:', error);
             return false;
@@ -102,7 +106,8 @@ class MerkleService {
 
         const allLeaves = [...existingLeaves, ...newLeaves];
 
-        return new MerkleTree(allLeaves, crypto.createHash, {
+        const hashFunction = (data) => crypto.createHash('sha256').update(data).digest();
+        return new MerkleTree(allLeaves, hashFunction, {
             hashLeaves: false,
             sortPairs: true,
             duplicateOdd: true
@@ -174,7 +179,8 @@ class MerkleService {
 
         const leaves = treeData.leaves.map(leafHex => Buffer.from(leafHex, 'hex'));
 
-        const reconstructedTree = new MerkleTree(leaves, crypto.createHash, {
+        const hashFunction = (data) => crypto.createHash('sha256').update(data).digest();
+        const reconstructedTree = new MerkleTree(leaves, hashFunction, {
             hashLeaves: false,
             sortPairs: true,
             duplicateOdd: true

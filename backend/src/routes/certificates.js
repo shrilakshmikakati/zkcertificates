@@ -7,6 +7,7 @@ const Joi = require('joi');
 
 const CertificateService = require('../services/CertificateService');
 const MerkleService = require('../services/MerkleService');
+const ZKProofService = require('../services/ZKProofService');
 
 const router = express.Router();
 
@@ -224,14 +225,13 @@ router.post('/parse', upload.single('file'), async (req, res) => {
         fs.createReadStream(csvPath)
             .pipe(csv())
             .on('data', (row) => {
-                // Validate required fields
-                if (row.name && row.email && row.course) {
+                // Validate required fields - only essential data needed
+                if (row.name) {
                     students.push({
                         name: row.name.trim(),
-                        email: row.email.trim(),
-                        course: row.course.trim(),
-                        institution: row.institution?.trim() || 'University of Technology',
-                        graduationDate: row.graduation_date?.trim() || row.graduationDate?.trim() || '2024-05-15',
+                        student_id: row.student_id?.trim() || row.id?.trim() || `STU${Date.now()}`,
+                        email: row.email?.trim() || 'student@example.com',
+                        course: row.course?.trim() || row.program?.trim() || row.department?.trim() || 'General Course',
                         grade: row.grade?.trim() || 'Merit - First Class',
                         percentage: row.percentage?.trim() || '85.0%'
                     });
@@ -297,12 +297,49 @@ router.post('/generate', async (req, res) => {
         const merkleTree = MerkleService.buildMerkleTree(certificateCommitments);
         const merkleRoot = merkleTree.getHexRoot();
 
-        // Simulate ZK proof generation (in real implementation, this would use SnarkJS)
-        const zkProofs = certificateCommitments.map((cert, index) => ({
-            certificateId: `CERT_${Date.now()}_${index}`,
-            proof: `0x${Math.random().toString(16).substr(2, 64)}`,
-            publicSignals: [cert.hash]
-        }));
+        // Generate real ZK proofs for privacy-preserving verification
+        const zkProofs = await Promise.all(
+            certificates.map(async (cert, index) => {
+                try {
+                    // Extract student data for ZK proof
+                    const studentId = parseInt(cert.studentId || Math.random() * 1000000);
+                    const subjects = [
+                        cert.math || 0,
+                        cert.science || 0,
+                        cert.english || 0,
+                        cert.history || 0,
+                        cert.art || 0
+                    ];
+                    
+                    const zkInput = {
+                        studentId: studentId,
+                        subjects: subjects,
+                        salt: Math.random().toString(36).substr(2, 16),
+                        minPassingGrade: 60,
+                        requireAllPassed: false
+                    };
+                    
+                    const proofData = await ZKProofService.generateProof(zkInput);
+                    
+                    return {
+                        certificateId: `CERT_${Date.now()}_${index}`,
+                        proof: proofData.proof,
+                        publicSignals: proofData.publicSignals,
+                        commitment: proofData.commitment,
+                        isValid: true
+                    };
+                } catch (error) {
+                    console.warn(`ZK proof generation failed for certificate ${index}:`, error.message);
+                    // Fallback to commitment-only approach for privacy
+                    return {
+                        certificateId: `CERT_${Date.now()}_${index}`,
+                        commitment: certificateCommitments[index].hash,
+                        isValid: false,
+                        error: 'ZK proof generation failed'
+                    };
+                }
+            })
+        );
 
         res.json({
             success: true,

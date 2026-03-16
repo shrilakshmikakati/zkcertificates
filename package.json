@@ -10,7 +10,13 @@
     "compile": "hardhat compile",
     "test": "hardhat test",
     "node": "hardhat node",
-    "deploy": "hardhat run scripts/deploy.js --network localhost",
+    "deploy": "hardhat run scripts/deploy.js --network ganache",
+    "deploy:localhost": "hardhat run scripts/deploy.js --network localhost",
+    "deploy:ganache": "hardhat run scripts/deploy.js --network ganache",
+    "deploy:optimism-sepolia": "hardhat run scripts/deploy.js --network optimismSepolia",
+    "deploy:arbitrum-sepolia": "hardhat run scripts/deploy.js --network arbitrumSepolia",
+    "deploy:base-sepolia": "hardhat run scripts/deploy.js --network baseSepolia",
+    "deploy:polygon-zkevm-cardona": "hardhat run scripts/deploy.js --network polygonZkEvmCardona",
     "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
     "dev:backend": "cd backend && npm run dev",
     "dev:frontend": "cd frontend && npm run dev",
@@ -32,19 +38,19 @@
     "@nomiclabs/hardhat-ethers": "^2.0.6",
     "@nomiclabs/hardhat-waffle": "^2.0.3",
     "@openzeppelin/hardhat-upgrades": "^1.21.0",
-    "hardhat": "^2.9.9",
-    "hardhat-tracer": "^1.2.0",
-    "concurrently": "^7.6.0",
     "chai": "^4.3.6",
-    "ethereum-waffle": "^3.4.4"
+    "concurrently": "^7.6.0",
+    "ethereum-waffle": "^3.4.4",
+    "hardhat": "^2.9.9"
   },
   "dependencies": {
     "@openzeppelin/contracts": "^4.7.3",
     "circomlib": "^2.0.5",
-    "snarkjs": "^0.4.27",
-    "merkletreejs": "^0.2.32",
-    "ethers": "^5.7.0",
+    "crypto": "^1.0.1",
     "csv-parser": "^3.0.0",
-    "crypto": "^1.0.1"
+    "dotenv": "^16.4.5",
+    "ethers": "^5.7.0",
+    "merkletreejs": "^0.2.32",
+    "snarkjs": "^0.4.27"
   }
 }

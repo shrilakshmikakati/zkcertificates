@@ -5,6 +5,7 @@ const compression = require('compression');
 const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
 require('dotenv').config();
+const { connectDatabase, isDatabaseConnected } = require('./config/database');
 
 // Import routes
 const certificateRoutes = require('./routes/certificates');
@@ -15,6 +16,7 @@ const merkleRoutes = require('./routes/merkle');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+const isProduction = process.env.NODE_ENV === 'production';
 
 // Security middleware
 app.use(helmet());
@@ -25,11 +27,32 @@ app.use(cors({
 
 // Rate limiting
 const limiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 100, // limit each IP to 100 requests per windowMs
-    message: 'Too many requests from this IP, please try again later.'
+    windowMs: Number(process.env.RATE_LIMIT_WINDOW) || 15 * 60 * 1000,
+    max: isProduction
+        ? (Number(process.env.RATE_LIMIT_MAX_REQUESTS) || 100)
+        : (Number(process.env.RATE_LIMIT_MAX_REQUESTS_DEV) || 5000),
+    standardHeaders: true,
+    legacyHeaders: false,
+    skip: (req) => {
+        if (isProduction) {
+            return false;
+        }
+
+        const ip = req.ip || '';
+        return (
+            ip === '::1' ||
+            ip === '127.0.0.1' ||
+            ip === '::ffff:127.0.0.1'
+        );
+    },
+    handler: (req, res) => {
+        res.status(429).json({
+            error: 'Too Many Requests',
+            message: 'Too many requests from this IP, please try again later.'
+        });
+    }
 });
-app.use(limiter);
+app.use('/api', limiter);
 
 // Body parsing middleware
 app.use(compression());
@@ -102,12 +125,19 @@ app.use('*', (req, res) => {
 });
 
 // Start server
-app.listen(PORT, () => {
-    console.log(` ZK Certificate System running on port ${PORT}`);
-    console.log(` Health check: http://localhost:${PORT}/health`);
-    console.log(` Dynamic certificates: http://localhost:${PORT}/api/certificates`);
-    console.log(` Environment: ${process.env.NODE_ENV || 'development'}`);
-    console.log(` Features: Dynamic CSV/Excel processing, Custom templates, Real-time API`);
-});
+async function startServer() {
+    await connectDatabase();
+
+    app.listen(PORT, () => {
+        console.log(` ZK Certificate System running on port ${PORT}`);
+        console.log(` Health check: http://localhost:${PORT}/health`);
+        console.log(` Dynamic certificates: http://localhost:${PORT}/api/certificates`);
+        console.log(` Environment: ${process.env.NODE_ENV || 'development'}`);
+        console.log(` MongoDB: ${isDatabaseConnected() ? 'connected' : 'disabled/unavailable'}`);
+        console.log(` Features: Dynamic CSV/Excel processing, Custom templates, Real-time API`);
+    });
+}
+
+startServer();
 
 module.exports = app;

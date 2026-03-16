@@ -4,3 +4,11 @@ student_details.xlsx
 students_marks.csv
 students_marks.xlsx
 Deployment status.txt
+frontend/.next/
+frontend/node_modules/
+backend/node_modules/
+artifacts/
+cache/
+circuit_builds/
+circuits/circuit_builds/
+ganache-db/

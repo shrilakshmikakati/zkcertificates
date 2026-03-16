@@ -1,11 +1,105 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Layout from '../src/components/Layout';
 
 export default function Home() {
+  const [dashboardStats, setDashboardStats] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    fetchDashboardStats();
+  }, []);
+
+  const fetchDashboardStats = async () => {
+    try {
+      const response = await fetch('http://localhost:3001/api/workflow/dashboard-stats');
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          setDashboardStats(data.data);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch dashboard stats:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
   return (
     <Layout title="Certificate System - Privacy-Preserving Digital Certificates">
       <div className="min-h-screen">
+        {/* Loading State */}
+        {isLoading && (
+          <div className="bg-gray-50 py-16">
+            <div className="max-w-4xl mx-auto px-4 text-center">
+              <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-primary-600 border-r-transparent mb-4"></div>
+              <p className="text-gray-600">Loading dashboard data...</p>
+            </div>
+          </div>
+        )}
+
+        {/* Dashboard Statistics - Dynamic */}
+        {!isLoading && dashboardStats && !dashboardStats.isEmpty && (
+          <div className="bg-gradient-to-r from-blue-50 to-indigo-100 py-16">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+              <div className="text-center mb-8">
+                <h2 className="text-2xl font-bold text-gray-900 mb-2">Current Data Overview</h2>
+                <p className="text-gray-600">
+                  {dashboardStats.isDemo ? (
+                    <>
+                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 mr-2">
+                        DEMO DATA
+                      </span>
+                      Showing sample data from: <strong>{dashboardStats.fileName}</strong>
+                      <span className="block text-sm mt-1">Upload your own CSV file to see your actual data here</span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 mr-2">
+                        YOUR DATA
+                      </span>
+                      Latest data from: <strong>{dashboardStats.fileName}</strong>
+                    </>
+                  )}
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                <div className="bg-blue-50 p-6 rounded-lg text-center border">
+                  <div className="text-4xl font-bold text-blue-600 mb-2">{dashboardStats.totalStudents}</div>
+                  <div className="text-sm font-medium text-blue-800">Total Students</div>
+                </div>
+                <div className="bg-green-50 p-6 rounded-lg text-center border">
+                  <div className="text-4xl font-bold text-green-600 mb-2">{dashboardStats.dataColumns}</div>
+                  <div className="text-sm font-medium text-green-800">Data Columns</div>
+                </div>
+                <div className="bg-purple-50 p-6 rounded-lg text-center border">
+                  <div className="text-4xl font-bold text-purple-600 mb-2">{dashboardStats.autoMappedFields}</div>
+                  <div className="text-sm font-medium text-purple-800">Auto-Mapped Fields</div>
+                </div>
+              </div>
+
+              <div className="text-center">
+                <p className="text-sm text-gray-600 mb-4">
+                  Last updated: {new Date(dashboardStats.lastUpload).toLocaleDateString()} at {new Date(dashboardStats.lastUpload).toLocaleTimeString()}
+                </p>
+                <div className="text-center">
+                  <Link href="/data-verification">
+                    <a className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors">
+                      View Data Verification
+                    </a>
+                  </Link>
+                  <Link href="/generate-proof">
+                    <a className="border border-blue-600 text-blue-600 px-6 py-2 rounded-lg hover:bg-blue-50 transition-colors ml-4">
+                      Upload New File
+                    </a>
+                  </Link>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Hero Section */}
         <div className="bg-gradient-to-br from-primary-50 to-primary-100">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24">

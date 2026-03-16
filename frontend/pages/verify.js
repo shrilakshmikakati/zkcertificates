@@ -11,9 +11,11 @@ export default function VerifyData() {
   const [fileName, setFileName] = useState('');
   const [processingErrors, setProcessingErrors] = useState([]);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [enableZKProofs, setEnableZKProofs] = useState(true);
+  const [zkProofStatus, setZkProofStatus] = useState('');
 
   useEffect(() => {
-    // Load file analysis data from localStorage (set by generate-proof.js)
+    // First, try to load file analysis data from localStorage (set by generate-proof.js)
     const savedData = localStorage.getItem('fileAnalysisData');
     if (savedData) {
       const data = JSON.parse(savedData);
@@ -22,16 +24,130 @@ export default function VerifyData() {
       setFileName(data.fileName);
       setFieldMappings(data.fileAnalysis.suggestedMappings || {});
     } else {
-      // Redirect to generate-proof if no data
-      router.push('/generate-proof');
+      // If no localStorage data, automatically fetch the latest session from the server
+      fetchLatestSessionData();
     }
   }, [router]);
+
+  // Auto-refresh data when page becomes visible
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        const savedData = localStorage.getItem('fileAnalysisData');
+        if (savedData) {
+          const data = JSON.parse(savedData);
+          setFileAnalysis(data.fileAnalysis);
+          setSessionId(data.sessionId);
+          setFileName(data.fileName);
+          setFieldMappings(data.fileAnalysis.suggestedMappings || {});
+        } else {
+          fetchLatestSessionData();
+        }
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, []);
+
+  const fetchLatestSessionData = async () => {
+    try {
+      const response = await fetch('http://localhost:3001/api/workflow/dashboard-stats');
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && !data.data.isEmpty) {
+          // Create file analysis structure from dashboard stats
+          const mockFileAnalysis = {
+            totalRows: data.data.totalStudents,
+            columns: data.data.columns,
+            sampleData: data.data.sampleData,
+            allData: data.data.allData,
+            suggestedMappings: {}
+          };
+          
+          setFileAnalysis(mockFileAnalysis);
+          setFileName(data.data.fileName);
+          setFieldMappings(mockFileAnalysis.suggestedMappings || {});
+        } else {
+          // Set empty state instead of redirecting
+          setFileAnalysis({ isEmpty: true });
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch session data:', error);
+      setFileAnalysis({ isEmpty: true });
+    }
+  };
 
   const updateFieldMapping = (targetField, sourceColumn) => {
     setFieldMappings(prev => ({
       ...prev,
       [targetField]: sourceColumn
     }));
+  };
+
+  const generateZKProofsForStudents = async (students) => {
+    if (!enableZKProofs) return null;
+    
+    try {
+      setZkProofStatus('Generating privacy-preserving ZK proofs...');
+      
+      const zkProofs = await Promise.all(
+        students.map(async (student, index) => { // Process all students
+          try {
+            const response = await fetch('http://localhost:3001/api/zkproofs/generate', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                studentId: student.studentId || Math.random().toString(36).substr(2, 9),
+                subjects: [
+                  student.math || 0,
+                  student.science || 0,
+                  student.english || 0,
+                  student.history || 0,
+                  student.art || 0
+                ],
+                salt: Math.random().toString(36).substr(2, 16),
+                minPassingGrade: 60,
+                requireAllPassed: false
+              })
+            });
+            
+            if (response.ok) {
+              const zkData = await response.json();
+              return {
+                studentId: student.studentId,
+                zkProof: zkData.data,
+                status: 'success'
+              };
+            } else {
+              return {
+                studentId: student.studentId,
+                status: 'failed',
+                error: 'ZK proof generation failed'
+              };
+            }
+          } catch (error) {
+            return {
+              studentId: student.studentId,
+              status: 'failed',
+              error: error.message
+            };
+          }
+        })
+      );
+      
+      setZkProofStatus(`Generated ${zkProofs.filter(p => p.status === 'success').length} ZK proofs`);
+      return zkProofs;
+    } catch (error) {
+      console.warn('ZK proof generation failed:', error);
+      setZkProofStatus('ZK proof generation failed - proceeding with standard verification');
+      return null;
+    }
   };
 
   const processAndProceedToIssue = async () => {
@@ -41,6 +157,7 @@ export default function VerifyData() {
     }
 
     setIsProcessing(true);
+    setZkProofStatus('');
 
     try {
       const response = await fetch('http://localhost:3001/api/workflow/process', {
@@ -70,11 +187,16 @@ export default function VerifyData() {
         throw new Error(data.message || 'Data processing failed');
       }
 
+      // Generate ZK proofs for privacy-preserving verification
+      const zkProofs = await generateZKProofsForStudents(data.certificates);
+
       // Store processed student data for issue page
       const certificateData = {
         certificates: data.certificates,
         merkleRoot: data.merkleRoot,
         merkleTreeStats: data.merkleTreeStats,
+        zkProofs: zkProofs, // Include ZK proofs for privacy
+        enabledPrivacy: enableZKProofs,
         totalCount: data.certificates.length,
         processedAt: new Date().toISOString(),
         fileName: fileName
@@ -104,6 +226,50 @@ export default function VerifyData() {
           <div className="text-center">
             <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-primary-600 border-r-transparent mb-4"></div>
             <p className="text-gray-600">Loading file data...</p>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
+
+  // Show "No Data" state if no file analysis data
+  if (fileAnalysis && fileAnalysis.isEmpty) {
+    return (
+      <Layout title="Verify Student Data - ZK Certificate System">
+        <div className="min-h-screen bg-gray-50">
+          {/* Header */}
+          <div className="bg-white border-b">
+            <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+              <div className="text-center">
+                <div className="mx-auto h-16 w-16 bg-green-100 rounded-full flex items-center justify-center mb-6">
+                  <span className="text-green-600 text-2xl">✅</span>
+                </div>
+                <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+                  Verify Student Data
+                </h1>
+                <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+                  No student data to verify yet
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* No Data State */}
+          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+            <div className="bg-white rounded-xl shadow-sm p-12 text-center">
+              <div className="mx-auto h-24 w-24 bg-yellow-100 rounded-full flex items-center justify-center mb-8">
+                <span className="text-yellow-600 text-4xl">📊</span>
+              </div>
+              <h2 className="text-3xl font-bold text-gray-900 mb-4">No Data Uploaded Yet</h2>
+              <p className="text-lg text-gray-600 max-w-2xl mx-auto mb-8">
+                Upload your first CSV file to see dynamic statistics and student data here.
+              </p>
+              <Link href="/generate-proof">
+                <a className="bg-yellow-600 text-white px-8 py-3 rounded-lg hover:bg-yellow-700 transition-colors font-semibold">
+                  Upload Student Data
+                </a>
+              </Link>
+            </div>
           </div>
         </div>
       </Layout>
@@ -236,7 +402,7 @@ export default function VerifyData() {
                 <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-lg mb-8">
                   <h4 className="text-sm font-semibold text-yellow-800 mb-2">⚠️ Data Issues</h4>
                   <div className="text-xs text-yellow-700 space-y-1">
-                    {processingErrors.slice(0, 3).map((error, idx) => (
+                    {processingErrors.map((error, idx) => (
                       <div key={idx}>Row {error.row}: {error.error}</div>
                     ))}
                     {processingErrors.length > 3 && (
@@ -245,6 +411,43 @@ export default function VerifyData() {
                   </div>
                 </div>
               )}
+
+              {/* Privacy & ZK Proof Options */}
+              <div className="bg-indigo-50 border border-indigo-200 p-6 rounded-lg mb-8">
+                <h4 className="text-lg font-semibold text-indigo-800 mb-4">🔐 Privacy-Preserving Options</h4>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1">
+                      <h5 className="font-medium text-gray-900">Generate Zero-Knowledge Proofs</h5>
+                      <p className="text-sm text-gray-600">
+                        Enable privacy-preserving verification that proves academic achievements without revealing actual grades
+                      </p>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer ml-4">
+                      <input
+                        type="checkbox"
+                        className="sr-only peer"
+                        checked={enableZKProofs}
+                        onChange={(e) => setEnableZKProofs(e.target.checked)}
+                      />
+                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+                    </label>
+                  </div>
+                  {enableZKProofs && (
+                    <div className="bg-white p-4 rounded-lg border border-indigo-200">
+                      <div className="flex items-center space-x-2 text-sm text-indigo-700">
+                        <span className="w-2 h-2 bg-indigo-500 rounded-full animate-pulse"></span>
+                        <span>ZK proofs will be generated to protect student privacy while enabling verification</span>
+                      </div>
+                    </div>
+                  )}
+                  {zkProofStatus && (
+                    <div className="bg-white p-3 rounded-lg border border-indigo-200">
+                      <div className="text-sm text-indigo-700">{zkProofStatus}</div>
+                    </div>
+                  )}
+                </div>
+              </div>
 
               {/* Action Buttons */}
               <div className="flex justify-center space-x-4">

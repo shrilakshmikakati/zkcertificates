@@ -50,7 +50,8 @@ class DynamicCertificateService {
                 success: true,
                 totalRows: data.length,
                 columns: columns,
-                sampleData: data.slice(0, 3), // First 3 rows as sample
+                sampleData: data.slice(0, 3), // First 3 rows for preview
+                allData: data, // Complete dataset for verification
                 suggestedMappings: suggestedMappings,
                 dataAnalysis: dataAnalysis,
                 detectedPatterns: this.detectDataPatterns(data)
@@ -67,26 +68,23 @@ class DynamicCertificateService {
      * @returns {Object} - Suggested field mappings
      */
     static suggestFieldMappings(columns) {
+        // Essential certificate fields only - streamlined approach
         const mappings = {
             name: null,
+            student_id: null,
             email: null,
             course: null,
-            institution: null,
-            graduation_date: null,
             grade: null,
-            percentage: null,
-            student_id: null
+            percentage: null
         };
 
         const patterns = {
             name: /name|student|full.*name|first.*name|last.*name/i,
+            student_id: /id|student.*id|roll|registration|reg|student.*number/i,
             email: /email|e-mail|mail/i,
-            course: /course|program|subject|major|degree/i,
-            institution: /institution|university|college|school/i,
-            graduation_date: /graduation|date|completed|finish/i,
-            grade: /grade|result|class|division|merit/i,
-            percentage: /percentage|percent|score|marks|cgpa|gpa/i,
-            student_id: /id|student.*id|roll|registration|reg/i
+            course: /course|program|subject|major|degree|department|dept/i,
+            grade: /grade|result|class|division|merit|rank/i,
+            percentage: /percentage|percent|score|marks|cgpa|gpa|total/i
         };
 
         columns.forEach(column => {
@@ -244,8 +242,6 @@ class DynamicCertificateService {
                 return this.cleanPercentage(stringVal);
             case 'grade':
                 return this.cleanGrade(stringVal);
-            case 'graduation_date':
-                return this.cleanDate(stringVal);
             default:
                 return stringVal;
         }
@@ -260,9 +256,12 @@ class DynamicCertificateService {
     static async generateDynamicPDFCertificate(studentData, template) {
         return new Promise(async (resolve, reject) => {
             try {
+                // Create horizontal landscape certificate - fix extra page issue
                 const doc = new PDFDocument({
-                    size: template.pageSize || 'A4',
-                    margins: template.margins || { top: 50, bottom: 50, left: 50, right: 50 }
+                    size: 'A4',
+                    layout: 'landscape', // Horizontal orientation
+                    margins: { top: 30, bottom: 30, left: 40, right: 40 },
+                    autoFirstPage: true
                 });
 
                 const buffers = [];
@@ -272,8 +271,8 @@ class DynamicCertificateService {
                     resolve(pdfBuffer);
                 });
 
-                // Apply template styling
-                await this.applyDynamicTemplate(doc, studentData, template);
+                // Apply elegant template styling
+                await this.applyElegantHorizontalTemplate(doc, studentData, template);
 
                 doc.end();
 
@@ -284,115 +283,292 @@ class DynamicCertificateService {
     }
 
     /**
-     * Apply dynamic template to PDF document
+     * Apply elegant horizontal template with golden borders
      * @param {PDFDocument} doc - PDF document
      * @param {Object} studentData - Student data
      * @param {Object} template - Template configuration
      */
-    static async applyDynamicTemplate(doc, studentData, template) {
-        const config = {
-            title: template.title || 'CERTIFICATE OF COMPLETION',
-            colors: template.colors || {
-                primary: '#2c3e50',
-                secondary: '#3498db',
-                accent: '#e74c3c',
-                text: '#34495e'
-            },
-            fonts: template.fonts || {
-                title: { size: 24, family: 'Helvetica-Bold' },
-                heading: { size: 18, family: 'Helvetica' },
-                body: { size: 14, family: 'Helvetica' },
-                small: { size: 10, family: 'Helvetica' }
-            },
-            layout: template.layout || 'standard'
+    static async applyElegantHorizontalTemplate(doc, studentData, template) {
+        const pageWidth = doc.page.width;
+        const pageHeight = doc.page.height;
+        const margin = 40;
+        
+        // Elegant color scheme with gold accents
+        const colors = {
+            gold: '#D4AF37',
+            darkGold: '#B8860B',
+            navy: '#1B2951',
+            darkBlue: '#0F1A2E',
+            cream: '#FFF8DC',
+            white: '#FFFFFF',
+            black: '#000000',
+            lightGray: '#F5F5F5'
         };
 
-        // Header
-        doc.fontSize(config.fonts.title.size)
-            .fillColor(config.colors.primary)
-            .text(config.title, { align: 'center' })
-            .moveDown(2);
-
-        // Institution name (if available)
-        if (studentData.institution) {
-            doc.fontSize(config.fonts.heading.size)
-                .fillColor(config.colors.secondary)
-                .text(studentData.institution, { align: 'center' })
-                .moveDown(1);
-        }
-
-        // Main content
-        doc.fontSize(config.fonts.body.size)
-            .fillColor(config.colors.text)
-            .text('This is to certify that', { align: 'center' })
-            .moveDown(1);
-
-        // Student name
-        doc.fontSize(config.fonts.title.size)
-            .fillColor(config.colors.accent)
-            .text(studentData.name || 'Student Name', {
-                align: 'center',
-                underline: true
-            })
-            .moveDown(1.5);
-
-        // Course completion text
+        // Create elegant border design
+        this.drawElegantBorder(doc, colors, pageWidth, pageHeight, margin);
+        
+        // Add decorative corner elements
+        this.drawCornerDecorations(doc, colors, pageWidth, pageHeight, margin);
+        
+        // Main content area
+        const contentWidth = pageWidth - (margin * 4);
+        const startX = margin * 2;
+        const startY = margin + 60;
+        
+        // Certificate title with elegant styling
+        doc.fontSize(36)
+           .fillColor(colors.gold)
+           .font('Helvetica-Bold')
+           .text('CERTIFICATE OF COMPLETION', startX, startY, {
+               width: contentWidth,
+               align: 'center'
+           });
+        
+        // Decorative line under title
+        const titleY = startY + 50;
+        doc.strokeColor(colors.gold)
+           .lineWidth(3)
+           .moveTo(startX + contentWidth/3, titleY)
+           .lineTo(startX + (2 * contentWidth/3), titleY)
+           .stroke();
+        
+        // Institution name with elegant styling - BOLD
+        doc.fontSize(20)
+           .fillColor(colors.navy)
+           .font('Helvetica-Bold')
+           .text('National Institute of Technology, Warangal', startX, titleY + 30, {
+               width: contentWidth,
+               align: 'center'
+           });
+        
+        // Main certificate text
+        const mainTextY = titleY + 80;
+        doc.fontSize(16)
+           .fillColor(colors.black)
+           .font('Helvetica')
+           .text('This is to certify that', startX, mainTextY, {
+               width: contentWidth,
+               align: 'center'
+           });
+        
+        // Student name with gold accent and elegant styling
+        const nameY = mainTextY + 40;
+        doc.fontSize(32)
+           .fillColor(colors.darkGold)
+           .font('Helvetica-Bold')
+           .text(studentData.name || 'Student Name', startX, nameY, {
+               width: contentWidth,
+               align: 'center'
+           });
+        
+        // Underline for name
+        const nameUnderlineY = nameY + 45;
+        doc.strokeColor(colors.gold)
+           .lineWidth(2)
+           .moveTo(startX + contentWidth/4, nameUnderlineY)
+           .lineTo(startX + (3 * contentWidth/4), nameUnderlineY)
+           .stroke();
+        
+        // Course information
         if (studentData.course) {
-            doc.fontSize(config.fonts.body.size)
-                .fillColor(config.colors.text)
-                .text('has successfully completed the course of study in', { align: 'center' })
-                .moveDown(0.5);
-
-            doc.fontSize(config.fonts.heading.size)
-                .fillColor(config.colors.secondary)
-                .text(studentData.course, { align: 'center' })
-                .moveDown(1);
+            const courseTextY = nameUnderlineY + 30;
+            doc.fontSize(16)
+               .fillColor(colors.black)
+               .font('Helvetica')
+               .text('has successfully completed the course of study in', startX, courseTextY, {
+                   width: contentWidth,
+                   align: 'center'
+               });
+            
+            doc.fontSize(22)
+               .fillColor(colors.navy)
+               .font('Helvetica-Bold')
+               .text(studentData.course, startX, courseTextY + 30, {
+                   width: contentWidth,
+                   align: 'center'
+               });
         }
-
-        // Grade information
+        
+        // Performance section with elegant boxes
+        const performanceY = nameUnderlineY + 120;
         if (studentData.grade || studentData.percentage) {
-            const gradeText = [];
-            if (studentData.grade) gradeText.push(`Grade: ${studentData.grade}`);
-            if (studentData.percentage) gradeText.push(`Score: ${studentData.percentage}`);
-
-            doc.fontSize(config.fonts.body.size)
-                .fillColor(config.colors.accent)
-                .text(gradeText.join(' | '), { align: 'center' })
-                .moveDown(1);
+            // Create elegant performance boxes
+            const boxWidth = 140;
+            const boxHeight = 50;
+            const boxSpacing = 40;
+            const totalBoxesWidth = (studentData.grade && studentData.percentage) ? 
+                (2 * boxWidth + boxSpacing) : boxWidth;
+            const boxStartX = startX + (contentWidth - totalBoxesWidth) / 2;
+            
+            let currentX = boxStartX;
+            
+            if (studentData.grade) {
+                this.drawPerformanceBox(doc, colors, currentX, performanceY, boxWidth, boxHeight, 
+                    'GRADE', studentData.grade);
+                currentX += boxWidth + boxSpacing;
+            }
+            
+            if (studentData.percentage) {
+                this.drawPerformanceBox(doc, colors, currentX, performanceY, boxWidth, boxHeight, 
+                    'SCORE', studentData.percentage);
+            }
         }
+        
+        // Issue date at bottom
+        const dateY = pageHeight - margin - 60;
+        doc.fontSize(14)
+           .fillColor(colors.navy)
+           .font('Helvetica')
+           .text(`Issued: ${new Date().toLocaleDateString('en-US', {
+               year: 'numeric',
+               month: 'long',
+               day: 'numeric'
+           })}`, startX, dateY, {
+               width: contentWidth,
+               align: 'center'
+           });
+        
+        // Generate certificate hash for QR code
+        const certificateHash = studentData.certificateHash || 
+            crypto.createHash('sha256')
+                .update(JSON.stringify({
+                    name: studentData.name,
+                    certificateId: studentData.certificateId,
+                    course: studentData.course,
+                    grade: studentData.grade,
+                    percentage: studentData.percentage,
+                    issueDate: new Date().toISOString()
+                }))
+                .digest('hex');
 
-        // Date
-        if (studentData.graduation_date) {
-            doc.fontSize(config.fonts.body.size)
-                .fillColor(config.colors.text)
-                .text(`Date: ${studentData.graduation_date}`, { align: 'center' })
-                .moveDown(2);
-        }
-
-        // QR Code for verification
-        if (studentData.certificateId) {
-            const qrData = JSON.stringify({
-                type: 'certificate_verification',
-                certificateId: studentData.certificateId,
-                studentName: studentData.name,
-                issueDate: new Date().toISOString()
+        // Add QR code with certificate hash
+        try {
+            const qrCodeDataURL = await QRCode.toDataURL(certificateHash, {
+                width: 100,
+                margin: 1,
+                color: {
+                    dark: colors.navy,
+                    light: '#FFFFFF'
+                }
             });
-
-            const qrCodeDataURL = await QRCode.toDataURL(qrData);
-            const qrCodeBuffer = Buffer.from(qrCodeDataURL.split(',')[1], 'base64');
-
-            doc.image(qrCodeBuffer, doc.page.width - 150, doc.page.height - 150, {
-                width: 80,
-                height: 80
+            
+            // Convert data URL to buffer for PDFKit
+            const qrBuffer = Buffer.from(qrCodeDataURL.split(',')[1], 'base64');
+            
+            // Add QR code to bottom right corner
+            doc.image(qrBuffer, pageWidth - margin - 110, pageHeight - margin - 110, {
+                width: 100,
+                height: 100
             });
+            
+            // Add QR code label
+            doc.fontSize(8)
+               .fillColor(colors.navy)
+               .font('Helvetica')
+               .text('Certificate Hash', pageWidth - margin - 110, pageHeight - margin - 5, {
+                   width: 100,
+                   align: 'center'
+               });
+        } catch (qrError) {
+            console.warn('Failed to generate QR code:', qrError);
         }
 
-        // Certificate ID
+        // Add certificate ID watermark
         if (studentData.certificateId) {
-            doc.fontSize(config.fonts.small.size)
-                .fillColor(config.colors.text)
-                .text(`Certificate ID: ${studentData.certificateId}`, 50, doc.page.height - 50);
+            doc.fontSize(10)
+               .fillColor(colors.lightGray)
+               .font('Helvetica')
+               .text(`Certificate ID: ${studentData.certificateId}`, margin, pageHeight - 25, {
+                   align: 'left'
+               });
         }
+    }
+    
+    /**
+     * Draw elegant golden border
+     */
+    static drawElegantBorder(doc, colors, pageWidth, pageHeight, margin) {
+        // Outer gold border
+        doc.lineWidth(4)
+           .strokeColor(colors.gold)
+           .rect(margin, margin, pageWidth - 2*margin, pageHeight - 2*margin)
+           .stroke();
+        
+        // Inner navy border
+        doc.lineWidth(2)
+           .strokeColor(colors.navy)
+           .rect(margin + 8, margin + 8, pageWidth - 2*margin - 16, pageHeight - 2*margin - 16)
+           .stroke();
+        
+        // Decorative gold inner line
+        doc.lineWidth(1)
+           .strokeColor(colors.darkGold)
+           .rect(margin + 15, margin + 15, pageWidth - 2*margin - 30, pageHeight - 2*margin - 30)
+           .stroke();
+    }
+    
+    /**
+     * Draw corner decorations
+     */
+    static drawCornerDecorations(doc, colors, pageWidth, pageHeight, margin) {
+        const cornerSize = 25;
+        const offset = margin + 20;
+        
+        // Top-left corner
+        doc.fillColor(colors.gold)
+           .circle(offset, offset, 3).fill()
+           .circle(offset + 10, offset, 2).fill()
+           .circle(offset, offset + 10, 2).fill();
+        
+        // Top-right corner
+        doc.circle(pageWidth - offset, offset, 3).fill()
+           .circle(pageWidth - offset - 10, offset, 2).fill()
+           .circle(pageWidth - offset, offset + 10, 2).fill();
+        
+        // Bottom-left corner
+        doc.circle(offset, pageHeight - offset, 3).fill()
+           .circle(offset + 10, pageHeight - offset, 2).fill()
+           .circle(offset, pageHeight - offset - 10, 2).fill();
+        
+        // Bottom-right corner
+        doc.circle(pageWidth - offset, pageHeight - offset, 3).fill()
+           .circle(pageWidth - offset - 10, pageHeight - offset, 2).fill()
+           .circle(pageWidth - offset, pageHeight - offset - 10, 2).fill();
+    }
+    
+    /**
+     * Draw performance information boxes
+     */
+    static drawPerformanceBox(doc, colors, x, y, width, height, label, value) {
+        // Box background
+        doc.fillColor(colors.cream)
+           .rect(x, y, width, height)
+           .fill();
+        
+        // Box border
+        doc.strokeColor(colors.gold)
+           .lineWidth(2)
+           .rect(x, y, width, height)
+           .stroke();
+        
+        // Label
+        doc.fontSize(12)
+           .fillColor(colors.navy)
+           .font('Helvetica-Bold')
+           .text(label, x, y + 8, {
+               width: width,
+               align: 'center'
+           });
+        
+        // Value
+        doc.fontSize(16)
+           .fillColor(colors.darkGold)
+           .font('Helvetica-Bold')
+           .text(value, x, y + 25, {
+               width: width,
+               align: 'center'
+           });
     }
 
     /**

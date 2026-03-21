@@ -15,10 +15,14 @@ class ZKProofService {
      */
     static async generateProof(input) {
         try {
+            const isProduction = process.env.NODE_ENV === 'production';
             // Check if we're in development mode (circuits not compiled)
             const isDevelopmentMode = !this.hasCompiledCircuits();
             
             if (isDevelopmentMode) {
+                if (isProduction) {
+                    throw new Error('Compiled circuits and proving keys are required in production. Run compile-circuits, setup-ptau, and generate-keys.');
+                }
                 // Development mode: generate mock proof with real structure
                 return this.generateDevelopmentProof(input);
             }
@@ -45,6 +49,9 @@ class ZKProofService {
 
         } catch (error) {
             console.error('ZK proof generation error:', error);
+            if (process.env.NODE_ENV === 'production') {
+                throw error;
+            }
             // Fallback to development proof for robustness
             return this.generateDevelopmentProof(input);
         }

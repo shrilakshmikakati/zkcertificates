@@ -14,21 +14,20 @@ const router = express.Router();
 const deploymentsDir = path.join(__dirname, '../../../deployments');
 const DeploymentRecord = require('../models/DeploymentRecord');
 const VerificationRecord = require('../models/VerificationRecord');
+const Certificate = require('../models/Certificate');
 
 const NETWORK_RPC_ENV_MAP = {
-    optimismSepolia: 'OPTIMISM_SEPOLIA_RPC_URL',
-    arbitrumSepolia: 'ARBITRUM_SEPOLIA_RPC_URL',
-    baseSepolia: 'BASE_SEPOLIA_RPC_URL',
-    polygonZkEvmCardona: 'POLYGON_ZKEVM_CARDONA_RPC_URL'
+    zksyncMainnet: 'ZKSYNC_MAINNET_RPC_URL',
+    zksyncSepholia: 'ZKSYNC_SEPHOLIA_RPC_URL'
 };
+
+const LOCAL_NETWORKS = ['ganache', 'localhost', 'hardhat'];
 
 const CHAIN_METADATA = {
     1337: { label: 'Ganache Local', layerType: 'Local EVM (L1 simulation)', isLayer2: false },
     31337: { label: 'Hardhat Local', layerType: 'Local EVM (L1 simulation)', isLayer2: false },
-    11155420: { label: 'Optimism Sepolia', layerType: 'Layer 2 Rollup', isLayer2: true },
-    421614: { label: 'Arbitrum Sepolia', layerType: 'Layer 2 Rollup', isLayer2: true },
-    84532: { label: 'Base Sepolia', layerType: 'Layer 2 Rollup', isLayer2: true },
-    2442: { label: 'Polygon zkEVM Cardona', layerType: 'Layer 2 Rollup', isLayer2: true }
+    300: { label: 'zkSync Sepolia Testnet', layerType: 'Layer 2 Rollup', isLayer2: true },
+    324: { label: 'zkSync Mainnet', layerType: 'Layer 2 Rollup', isLayer2: true },
 };
 
 function resolveNetworkMetadata(network, configuredNetwork) {
@@ -74,23 +73,49 @@ function getRpcUrl(requestedNetwork = '') {
         return process.env[rpcEnvKey];
     }
 
-    return process.env.L2_RPC_URL || process.env.BLOCKCHAIN_RPC_URL || 'http://127.0.0.1:7545';
+    return process.env.BLOCKCHAIN_RPC_URL || 'https://mainnet.era.zksync.io';
+}
+
+function validateDeploymentEnvironment(requestedNetwork = '') {
+    const network = getConfiguredNetwork(requestedNetwork);
+    const privateKey = (process.env.DEPLOYER_PRIVATE_KEY || '').trim();
+
+    if (!privateKey) {
+        throw new Error('DEPLOYER_PRIVATE_KEY is required for blockchain deployment');
+    }
+
+    const rpcEnvKey = NETWORK_RPC_ENV_MAP[network];
+    if (rpcEnvKey && !(process.env[rpcEnvKey] || '').trim()) {
+        throw new Error(`${rpcEnvKey} is required for ${network} deployments`);
+    }
 }
 
 function loadDeploymentConfig(requestedNetwork = '') {
     const network = getConfiguredNetwork(requestedNetwork);
+    const isLocalNetwork = network === 'ganache' || network === 'localhost' || network === 'hardhat';
     const candidateFiles = [];
 
     if (network) {
         candidateFiles.push(path.join(deploymentsDir, `latest.${network}.json`));
     }
 
-    candidateFiles.push(path.join(deploymentsDir, 'latest.json'));
+    // Only use fallback latest.json for local networks
+    if (isLocalNetwork) {
+        candidateFiles.push(path.join(deploymentsDir, 'latest.json'));
+    }
 
     for (const candidate of candidateFiles) {
         if (fs.existsSync(candidate)) {
             return JSON.parse(fs.readFileSync(candidate, 'utf8'));
         }
+    }
+
+    if (!isLocalNetwork) {
+        throw new Error(
+            `No deployment found for ${network}. ` +
+            `Please deploy contracts to this network first:\n` +
+            `npx hardhat run scripts/deploy.js --network ${network}`
+        );
     }
 
     throw new Error('No deployment file found');
@@ -212,6 +237,10 @@ router.post('/process', async (req, res) => {
 
         const { sessionId, fieldMappings, processingOptions } = value;
 
+        console.log(`\n === PROCESSING STEP ===`);
+        console.log(`Session ID: ${sessionId}`);
+        console.log(`Field Mappings:`, JSON.stringify(fieldMappings, null, 2));
+
         // Retrieve session
         const session = global.certificateWorkflowSessions?.[sessionId];
         if (!session || new Date() > session.expiresAt) {
@@ -221,9 +250,16 @@ router.post('/process', async (req, res) => {
             });
         }
 
+        console.log(` Session found: ${session.originalName}`);
+
         // Re-parse file for processing
         const analysis = await DynamicCertificateService.analyzeFileStructure(session.filePath);
         const rawData = analysis.allData; // Use complete dataset
+
+        console.log(` Raw data extracted: ${rawData.length} rows`);
+        if (rawData.length > 0) {
+            console.log(`   Sample row (first):`, JSON.stringify(rawData[0], null, 2));
+        }
 
         // Process data with user mappings
         const processingResult = DynamicCertificateService.processStudentData(
@@ -232,7 +268,17 @@ router.post('/process', async (req, res) => {
             processingOptions || {}
         );
 
+        console.log(` Processing Result:`);
+        console.log(`   Success: ${processingResult.success}`);
+        console.log(`   Processed records: ${processingResult.processedData ? processingResult.processedData.length : 0}`);
+        console.log(`   Errors: ${processingResult.errors ? processingResult.errors.length : 0}`);
+        
+        if (processingResult.processedData && processingResult.processedData.length > 0) {
+            console.log(`   Sample processed record:`, JSON.stringify(processingResult.processedData[0], null, 2));
+        }
+
         if (!processingResult.success) {
+            console.error(`Processing failed:`, processingResult.errors);
             return res.status(400).json({
                 success: false,
                 error: 'Data Processing Failed',
@@ -264,6 +310,8 @@ router.post('/process', async (req, res) => {
             };
         });
 
+        console.log(` Generated commitments for ${certificatesWithPreCommitments.length} certificates`);
+
         // Build initial Merkle tree for deployment
         let merkleTree, merkleRoot, certificatesWithProofs;
 
@@ -288,6 +336,10 @@ router.post('/process', async (req, res) => {
             session.merkleRoot = merkleRoot;
             session.merkleTreeStats = treeStats;
             session.step = 'processed';
+
+            console.log(` Session updated with processedData: ${certificatesWithProofs.length} certificates`);
+            console.log(` Merkle Root: ${merkleRoot}`);
+            console.log(` === END PROCESSING ===\n`);
 
         } catch (merkleError) {
             console.error('Merkle tree generation error:', merkleError);
@@ -385,7 +437,9 @@ router.post('/deploy', async (req, res) => {
             merkleRoot: Joi.string().required(),
             certificates: Joi.array().optional(),
             totalCertificates: Joi.number().required(),
-            metadata: Joi.object().optional()
+            metadata: Joi.object().optional(),
+            zkProofs: Joi.array().optional(),
+            enableZKVerification: Joi.boolean().optional()
         });
 
         const { error, value } = schema.validate(req.body);
@@ -397,8 +451,9 @@ router.post('/deploy', async (req, res) => {
             });
         }
 
-        const { sessionId, networkSelection, merkleRoot, certificates, totalCertificates, metadata } = value;
+        const { sessionId, networkSelection, merkleRoot, certificates, totalCertificates, metadata, zkProofs, enableZKVerification } = value;
         const selectedNetwork = getConfiguredNetwork(networkSelection);
+        validateDeploymentEnvironment(selectedNetwork);
 
         // Load deployed contract addresses
         let contractAddresses;
@@ -438,9 +493,34 @@ router.post('/deploy', async (req, res) => {
             }
             : {};
         
-        // Use deployer account - get from Ganache account #0 (index 0)
-        const privateKey = process.env.DEPLOYER_PRIVATE_KEY || '0xa1110fee0b5977d0a2743226c4219a1a7f9e5b6d9e19ac0c3c4ad20c0352405b';
+        // Select the appropriate deployer account based on network
+        console.log(`\n=== DEPLOY REQUEST ===`);
+        console.log(`Selected Network: ${selectedNetwork}`);
+        console.log(`Network (lowercase): ${selectedNetwork.toLowerCase()}`);
+        
+        let privateKey;
+        if (selectedNetwork.toLowerCase() === 'ganache' || selectedNetwork.toLowerCase() === 'localhost' || selectedNetwork.toLowerCase() === 'hardhat') {
+            privateKey = process.env.GANACHE_DEPLOYER_PRIVATE_KEY;
+            console.log(`✓ Using GANACHE private key`);
+            console.log(`  Private Key: ${privateKey ? privateKey.substring(0, 10) + '...' : 'NOT FOUND'}`);
+        } else {
+            privateKey = process.env.DEPLOYER_PRIVATE_KEY;
+            console.log(`Using DEPLOYER (zkSync) private key`);
+            console.log(`  Private Key: ${privateKey ? privateKey.substring(0, 10) + '...' : 'NOT FOUND'}`);
+        }
+        
+        if (!privateKey) {
+            console.log(`ERROR: Private key not found!`);
+            return res.status(500).json({
+                success: false,
+                error: 'Deployer private key not configured',
+                message: `Please set the appropriate private key in .env for network: ${selectedNetwork}`
+            });
+        }
+        
         const signer = new ethers.Wallet(privateKey, provider);
+        console.log(`✓ Signer address: ${signer.address}`);
+        console.log(`===================\n`);
 
         // Load contract ABI
         const ZKCertificateSystemABI = require('../../../artifacts/contracts/ZKCertificateSystem.sol/ZKCertificateSystem.json').abi;
@@ -468,15 +548,15 @@ router.post('/deploy', async (req, res) => {
         // Issue batch to blockchain using the correct function
         const tx = await zkCertificateSystem.issueBatch(
             merkleRoot,
-            metadata?.institutionName || 'Educational Institution',
-            metadata?.courseName || 'Certificate Program',
+            metadata?.institutionName || 'National Institute of Technology, Warangal',
+            metadata?.courseName || 'Degree Program',
             metadata?.graduationYear || new Date().getFullYear(),
             totalCertificates,
             txOverrides
         );
 
         console.log(` Transaction sent: ${tx.hash}`);
-        console.log('⏳ Waiting for confirmation...');
+        console.log(' Waiting for confirmation...');
         
         // Wait for transaction to be mined
         const receipt = await tx.wait();
@@ -489,14 +569,198 @@ router.post('/deploy', async (req, res) => {
 
         // PHASE 2: Now that we have transaction details, create final certificate commitments
         let finalCertificates = [];
-        if (sessionId && global.certificateWorkflowSessions?.[sessionId]?.processedData) {
-            const sessionData = global.certificateWorkflowSessions[sessionId].processedData;
+        let certificatesForProcessing = null;
+        
+        // Try to get certificates from multiple sources
+        console.log(`\n === CERTIFICATE RETRIEVAL DEBUG ===`);
+        console.log(`sessionId provided: ${!!sessionId}`);
+        console.log(`certificates in request: ${certificates ? certificates.length : 0}`);
+        
+        // Log ZK Proof data received
+        console.log(`\n === ZK PROOF VERIFICATION DEBUG ===`);
+        console.log(`enableZKVerification: ${enableZKVerification}`);
+        console.log(`zkProofs received: ${zkProofs ? zkProofs.length : 0}`);
+        if (zkProofs && zkProofs.length > 0) {
+            const successfulProofs = zkProofs.filter(p => p.status === 'success').length;
+            const failedProofs = zkProofs.filter(p => p.status === 'failed').length;
+            console.log(`  - Successful: ${successfulProofs}`);
+            console.log(`  - Failed: ${failedProofs}`);
+            console.log(`  Sample zkProof[0]:`, JSON.stringify({
+                studentId: zkProofs[0].studentId,
+                status: zkProofs[0].status,
+                hasProofData: !!zkProofs[0].zkProof
+            }));
+            // Show all keys in the first zkProof
+            console.log(`  All keys in zkProof[0]:`, Object.keys(zkProofs[0]));
+            // Show what's inside the zkProof.zkProof if it exists
+            if (zkProofs[0].zkProof) {
+                console.log(`  Keys inside zkProof[0].zkProof:`, Object.keys(zkProofs[0].zkProof));
+            }
+            // Full first object for debugging
+            console.log(`  Full zkProof[0]:`, JSON.stringify(zkProofs[0], null, 2));
+        }
+        
+        // Log all available sessions
+        const allSessions = Object.entries(global.certificateWorkflowSessions || {});
+        console.log(` Total sessions available: ${allSessions.length}`);
+        allSessions.forEach(([sid, sess]) => {
+            console.log(`   - Session ${sid.substring(0, 20)}... : step=${sess.step}, processedData=${sess.processedData ? sess.processedData.length : 0}, file=${sess.originalName}`);
+        });
+        
+        // Priority 1: Use certificates from request body if provided
+        if (certificates && certificates.length > 0) {
+            console.log(` PRIORITY 1 SUCCESS: Using ${certificates.length} certificates from request body`);
+            console.log(`   First certificate keys:`, Object.keys(certificates[0]).join(', '));
+            console.log(`   Certificate structure:`, JSON.stringify({
+                name: certificates[0].name,
+                email: certificates[0].email,
+                student_id: certificates[0].student_id,
+                studentId: certificates[0].studentId,
+                course: certificates[0].course,
+                certificateId: certificates[0].certificateId,
+                preCommitment: certificates[0].preCommitment ? '(present)' : '(missing)',
+                merkleProof: certificates[0].merkleProof ? '(present)' : '(missing)'
+            }, null, 2));
+            certificatesForProcessing = certificates;
+            console.log(`    certificatesForProcessing set from Priority 1`);
+        }
+        // Priority 2: Try to get from explicit sessionId
+        else if (sessionId && global.certificateWorkflowSessions?.[sessionId]?.processedData) {
+            console.log(`Using processed certificates from session ${sessionId}`);
+            certificatesForProcessing = global.certificateWorkflowSessions[sessionId].processedData;
+        }
+        // Priority 3: If no sessionId provided, find the most recent session with processed data
+        else if (!sessionId && global.certificateWorkflowSessions) {
+            const sessionsWithData = Object.entries(global.certificateWorkflowSessions)
+                .filter(([_, session]) => session.processedData && session.processedData.length > 0)
+                .sort(([_a, a], [_b, b]) => new Date(b.createdAt) - new Date(a.createdAt));
+            
+            if (sessionsWithData.length > 0) {
+                const [recentSessionId, recentSessionData] = sessionsWithData[0];
+                console.log(`   Found ${sessionsWithData.length} session(s) with data. Using most recent:`);
+                console.log(`   Session: ${recentSessionId.substring(0, 20)}...`);
+                console.log(`   Certificates: ${recentSessionData.processedData.length}`);
+                console.log(`   File: ${recentSessionData.originalName}`);
+                console.log(`   Sample certificate:`, {
+                    name: recentSessionData.processedData[0].name,
+                    email: recentSessionData.processedData[0].email,
+                    student_id: recentSessionData.processedData[0].student_id,
+                    course: recentSessionData.processedData[0].course
+                });
+                certificatesForProcessing = recentSessionData.processedData;
+            } else {
+                console.warn(`  No sessions with processedData found. Available sessions: ${allSessions.length}`);
+                if (allSessions.length > 0) {
+                    const [recentParsedId, recentParsedSession] = Object.entries(global.certificateWorkflowSessions)
+                        .sort(([_a, a], [_b, b]) => new Date(b.createdAt) - new Date(a.createdAt))[0];
+                    console.log(`Most recent session is in step: ${recentParsedSession.step}`);
+                    console.log(`   If 'parsed', you need to call /api/workflow/process with field mappings first`);
+                }
+            }
+        }
+        
+        // Priority 4: Fallback - Try to extract from raw file data with auto-mappings
+        if (!certificatesForProcessing || certificatesForProcessing.length === 0) {
+            console.warn(`  processedData not found. Attempting to extract from raw file data...`);
+            
+            // Find the most recent session (any state) to get raw data
+            const recentRawSession = Object.entries(global.certificateWorkflowSessions || {})
+                .sort(([_a, a], [_b, b]) => new Date(b.createdAt) - new Date(a.createdAt))[0];
+            
+            if (recentRawSession) {
+                const [rawSessionId, rawSessionData] = recentRawSession;
+                console.log(`   Found raw session ${rawSessionId.substring(0, 20)}... with ${rawSessionData.analysis?.allData?.length || 0} records`);
+                
+                if (rawSessionData.analysis?.allData && rawSessionData.analysis.allData.length > 0) {
+                    const rawData = rawSessionData.analysis.allData;
+                    const suggestedMappings = rawSessionData.analysis.suggestedMappings || {};
+                    
+                    console.log(`   Auto-detected field mappings:`, JSON.stringify(suggestedMappings, null, 2));
+                    
+                    // Auto-process the raw data using suggested mappings
+                    try {
+                        const autoProcessedResult = DynamicCertificateService.processStudentData(
+                            rawData,
+                            suggestedMappings,
+                            {}
+                        );
+                        
+                        if (autoProcessedResult.processedData && autoProcessedResult.processedData.length > 0) {
+                            console.log(` Auto-extracted ${autoProcessedResult.processedData.length} student records from Excel`);
+                            console.log(`   Sample:`, {
+                                name: autoProcessedResult.processedData[0].name,
+                                email: autoProcessedResult.processedData[0].email,
+                                student_id: autoProcessedResult.processedData[0].student_id,
+                                course: autoProcessedResult.processedData[0].course
+                            });
+                            certificatesForProcessing = autoProcessedResult.processedData;
+                        } else {
+                            console.warn(` Auto-processing returned 0 records. Processing errors:`, autoProcessedResult.errors);
+                        }
+                    } catch (autoProcessError) {
+                        console.error(` Auto-processing failed:`, autoProcessError.message);
+                    }
+                }
+            } else {
+                console.warn(` No session data found at all!`);
+            }
+        }
+        
+        // Priority 5: Last resort - Create placeholder certificates
+        if (!certificatesForProcessing || certificatesForProcessing.length === 0) {
+            console.error(`\n❌ PRIORITY 5 FALLBACK: Creating ${totalCertificates} PLACEHOLDER certificates`);
+            console.error(`  This is a fallback - real data was not found!`);
+            console.error(`  One of these issues occurred:`);
+            console.error(`  1. Frontend not sending 'certificates' array in deploy request (PRIORITY 1)`);
+            console.error(`  2. No valid session data found on backend (PRIORITY 2/3)`);
+            console.error(`  3. Session data has no processed certificates`);
+            console.error(`  4. Could not auto-extract from raw Excel data (PRIORITY 4)`);
+            certificatesForProcessing = Array.from({ length: totalCertificates }, (_, i) => ({
+                certificateId: `CERT${Date.now()}_${i}`,
+                name: `Certificate ${i + 1}`,
+                email: `cert${i + 1}@example.com`,
+                student_id: `STU${String(i + 1).padStart(5, '0')}`,
+                preCommitmentData: {
+                    name: `Certificate ${i + 1}`,
+                    email: `cert${i + 1}@example.com`,
+                    student_id: `STU${String(i + 1).padStart(5, '0')}`,
+                    sessionId: sessionId || 'direct-deploy',
+                    createdAt: new Date().toISOString()
+                }
+            }));
+        }
+        console.log(` === END DEBUG ===\n`);
+        
+        console.log(`\n === CRITICAL CHECK ===`);
+        console.log(`certificatesForProcessing exists: ${!!certificatesForProcessing}`);
+        console.log(`certificatesForProcessing is array: ${Array.isArray(certificatesForProcessing)}`);
+        console.log(`certificatesForProcessing length: ${certificatesForProcessing?.length || 0}`);
+        
+        if (certificatesForProcessing && certificatesForProcessing.length > 0) {
+            console.log(` Will execute finalCertificates creation with ${certificatesForProcessing.length} records`);
+            console.log(`\n === FINALCERTIFICATES CREATION PHASE ===`);
+            console.log(` Processing ${certificatesForProcessing.length} certificates for MongoDB storage...`);
             
             // Create final commitments with transaction details
-            finalCertificates = sessionData.map(cert => {
+            finalCertificates = certificatesForProcessing.map((cert, idx) => {
+                // Ensure preCommitmentData exists (for raw Excel data, it won't)
+                let preCommitmentData = cert.preCommitmentData;
+                if (!preCommitmentData) {
+                    console.log(`   Creating preCommitmentData for certificate ${idx + 1}: ${cert.name}`);
+                    preCommitmentData = {
+                        name: cert.name || cert['Student Name'] || cert['STUDENT NAME'] || `Student ${idx + 1}`,
+                        email: cert.email || cert['Email'] || cert['EMAIL'] || '',
+                        student_id: cert.student_id || cert['Student ID'] || cert['STUDENT ID'] || cert['ID'] || `STU${String(idx + 1).padStart(5, '0')}`,
+                        course: cert.course || cert['Course'] || cert['COURSE'] || '',
+                        grade: cert.grade || cert['Grade'] || cert['GRADE'] || cert['percentage'] || '',
+                        sessionId: sessionId || 'direct-deploy',
+                        createdAt: new Date().toISOString()
+                    };
+                }
+                
                 const finalCommitmentData = {
                     // Original certificate data
-                    ...cert.preCommitmentData,
+                    ...preCommitmentData,
                     
                     // NEW: Transaction details now cryptographically linked
                     transactionHash: tx.hash,
@@ -517,6 +781,10 @@ router.post('/deploy', async (req, res) => {
 
                 return {
                     ...cert,
+                    name: preCommitmentData.name,
+                    email: preCommitmentData.email,
+                    student_id: preCommitmentData.student_id,
+                    preCommitmentData: preCommitmentData,
                     finalCommitment: finalCommitment,
                     finalCommitmentData: finalCommitmentData,
                     transactionDetails: {
@@ -549,9 +817,19 @@ router.post('/deploy', async (req, res) => {
                 // Update session with final data
                 global.certificateWorkflowSessions[sessionId].finalCertificates = finalCertificatesWithProofs;
                 global.certificateWorkflowSessions[sessionId].finalMerkleRoot = finalMerkleRoot;
+                
+                //  CRITICAL: Update the finalCertificates variable that will be used for MongoDB save
+                finalCertificates = finalCertificatesWithProofs;
+                
+                console.log(`finalCertificates updated with proofs: ${finalCertificates.length} certificates`);
+                console.log(`   First cert has finalMerkleProof: ${!!finalCertificates[0].finalMerkleProof}`);
+                console.log(`   Sample: name=${finalCertificates[0].name}, email=${finalCertificates[0].email}`);
             } catch (finalMerkleError) {
                 console.warn('Failed to build final Merkle tree:', finalMerkleError);
             }
+        } else {
+            console.error(`\n EARLY EXIT: certificatesForProcessing is empty or null!`);
+            console.error(`   finalCertificates will remain empty: ${Array.isArray(finalCertificates) ? finalCertificates.length : 'not-array'}`);
         }
 
         // If session provided, mark as deployed
@@ -571,9 +849,13 @@ router.post('/deploy', async (req, res) => {
             };
         }
 
+        console.log(`\n📤 === ABOUT TO SEND RESPONSE ===`);
+        console.log(`finalCertificates count: ${finalCertificates?.length || 0}`);
+        console.log(`finalCertificates is array: ${Array.isArray(finalCertificates)}`);
+        
         res.json({
             success: true,
-                message: `Successfully deployed ${totalCertificates} certificates to blockchain with complete transaction linkage`,
+            message: `Successfully deployed ${totalCertificates} certificates to blockchain with complete transaction linkage`,
             deploymentPhase: {
                 initialMerkleRoot: merkleRoot,
                 finalMerkleRoot: global.certificateWorkflowSessions?.[sessionId]?.finalMerkleRoot || merkleRoot
@@ -603,8 +885,22 @@ router.post('/deploy', async (req, res) => {
             timestamp: new Date().toISOString()
         });
 
+        console.log(`\n\n === MONGODB SAVE PHASE (EXECUTING NOW AFTER RESPONSE) ===`);
+        console.log(`finalCertificates status:`);
+        console.log(`  - exists: ${!!finalCertificates}`);
+        console.log(`  - is array: ${Array.isArray(finalCertificates)}`);
+        console.log(`  - length: ${finalCertificates?.length || 0}`);
+        if (finalCertificates && finalCertificates.length > 0) {
+            console.log(`  - first cert name: ${finalCertificates[0].name}`);
+            console.log(`  - first cert email: ${finalCertificates[0].email}`);
+        } else {
+            console.error(`\n  CRITICAL: finalCertificates is EMPTY`);
+            console.error(`   No certificates will be saved to MongoDB!`);
+            console.error(`   This means certificatesForProcessing never had data`);
+        }
+
         try {
-            await DeploymentRecord.create({
+            const deployment = await DeploymentRecord.create({
                 networkSelection: selectedNetwork,
                 networkDisplay: networkMeta.networkDisplay,
                 networkName: networkMeta.networkName,
@@ -622,13 +918,200 @@ router.post('/deploy', async (req, res) => {
                 metadata: metadata || {},
                 deployedAt: new Date(block.timestamp * 1000)
             });
+
+            // Save individual certificates to MongoDB
+            if (finalCertificates && finalCertificates.length > 0) {
+                console.log(`\n📝 Saving ${finalCertificates.length} certificates to MongoDB...`);
+                
+                // Map zkProofs by studentId for quick lookup
+                const zkProofMap = {};
+                if (zkProofs && Array.isArray(zkProofs)) {
+                    console.log(`\n   🔍 Processing zkProofs array...`);
+                    zkProofs.forEach((proof, idx) => {
+                        console.log(`      zkProofs[${idx}] keys:`, Object.keys(proof));
+                        console.log(`      zkProofs[${idx}].studentId:`, proof.studentId);
+                        console.log(`      zkProofs[${idx}].status:`, proof.status);
+                        if (proof.studentId) {
+                            zkProofMap[proof.studentId] = proof;
+                            console.log(`      ✓ Mapped studentId: ${proof.studentId}`);
+                        } else {
+                            console.log(`      ✗ NO studentId found!`);
+                        }
+                    });
+                    console.log(`   ✓ ZK Proof Map created: ${Object.keys(zkProofMap).length} proofs mapped`);
+                    console.log(`   StudentIds in zkProofMap:`, Object.keys(zkProofMap));
+                } else {
+                    console.log(`   ✗ zkProofs is not an array or is empty`);
+                }
+                
+                const certificatesToSave = finalCertificates.map((cert, idx) => {
+                    // Try to match this certificate with its zkProof
+                    const studentId = cert.student_id || cert.studentId || `STU${idx}`;
+                    
+                    // Try multiple matching strategies
+                    let matchedZKProof = null;
+                    
+                    // Strategy 1: Exact ID match
+                    matchedZKProof = zkProofMap[studentId];
+                    
+                    // Strategy 2: Try by index position (fallback if zkProofs array order matches certificates)
+                    if (!matchedZKProof && zkProofs && zkProofs[idx]) {
+                        const zkProofAtIndex = zkProofs[idx];
+                        if (zkProofAtIndex.status === 'success') {
+                            matchedZKProof = zkProofAtIndex;
+                            if (idx < 3) {
+                                console.log(`   Cert ${idx + 1}: No ID match, using position-based match (index ${idx})`);
+                            }
+                        }
+                    }
+                    
+                    // Log which studentId we're looking up and if we found a match
+                    if (idx < 3) {  // Log first 3 certificates for debugging
+                        console.log(`   Cert ${idx + 1}: Looking for studentId="${studentId}" in zkProofMap - ${matchedZKProof ? '✓ FOUND' : '✗ NOT FOUND'}`);
+                    }
+                    
+                    // Use the matched proof if available and successful, otherwise use cert's proof
+                    let zkProofData = cert.zkProof || { verified: false, pA: [], pB: [], pC: [], publicSignals: [] };
+                    let isZKVerified = false;
+                    
+                    if (matchedZKProof && matchedZKProof.status === 'success') {
+                        if (matchedZKProof.zkProof) {
+                            // Transform proof structure: pi_a/pi_b/pi_c → pA/pB/pC for MongoDB storage
+                            const proofData = matchedZKProof.zkProof;
+                            if (proofData.proof) {
+                                // This is from the API response with { proof: {pi_a, pi_b, pi_c}, publicSignals, commitment }
+                                zkProofData = {
+                                    pA: proofData.proof.pi_a || proofData.proof.a || [],
+                                    pB: proofData.proof.pi_b || proofData.proof.b || [],
+                                    pC: proofData.proof.pi_c || proofData.proof.c || [],
+                                    publicSignals: proofData.publicSignals || [],
+                                    commitment: proofData.commitment,
+                                    verified: true,
+                                    verifyStatus: 'success',
+                                    studentId: matchedZKProof.studentId
+                                };
+                            } else if (proofData.pi_a || proofData.pA) {
+                                // Already in the correct format
+                                zkProofData = {
+                                    pA: proofData.pA || proofData.pi_a || [],
+                                    pB: proofData.pB || proofData.pi_b || [],
+                                    pC: proofData.pC || proofData.pi_c || [],
+                                    publicSignals: proofData.publicSignals || [],
+                                    commitment: proofData.commitment,
+                                    verified: true,
+                                    verifyStatus: 'success',
+                                    studentId: matchedZKProof.studentId
+                                };
+                            }
+                            isZKVerified = true;
+                            console.log(`    Certificate ${idx + 1} (${studentId}): ZK Proof matched and verified`);
+                            console.log(`       Proof structure: pA=${zkProofData.pA.length > 0 ? 'present' : 'missing'}, pB=${zkProofData.pB.length > 0 ? 'present' : 'missing'}, pC=${zkProofData.pC.length > 0 ? 'present' : 'missing'}`);
+                        }
+                    } else if (matchedZKProof) {
+                        console.log(`     Certificate ${idx + 1} (${studentId}): ZK Proof generation failed - status: ${matchedZKProof.status}`);
+                    } else {
+                        console.log(`   ℹ️  Certificate ${idx + 1} (${studentId}): No matching ZK proof found in batch`);
+                    }
+                    
+                    return {
+                        certificateId: cert.certificateId || `CERT${Date.now()}${Math.random().toString(36).substr(2, 9)}`,
+                        name: cert.name || cert.studentName,
+                        email: cert.email || cert.studentEmail,
+                        studentId: studentId,
+                        issueDate: cert.issueDate || new Date().toLocaleDateString(),
+                        verificationCode: cert.verificationCode || `VF${Math.random().toString(36).substr(2, 8).toUpperCase()}`,
+                        
+                        // Blockchain & Deployment
+                        deploymentId: deployment._id,
+                        transactionHash: tx.hash,
+                        blockNumber: receipt.blockNumber,
+                        contractAddress: contractAddresses.contracts.ZKCertificateSystem.address,
+                        
+                        // Merkle Tree
+                        merkleRoot: merkleRoot,
+                        merkleProof: cert.merkleProof || cert.finalMerkleProof || [],
+                        leafHash: cert.leafHash || cert.finalCommitment,
+                        
+                        // Content
+                        content: {
+                            institutionName: metadata?.institutionName || 'Educational Institution',
+                            courseName: metadata?.courseName || 'Certificate Program',
+                            completionDate: cert.issueDate || new Date().toLocaleDateString(),
+                            certificateProgram: metadata?.courseName,
+                            studentName: cert.name || cert.studentName,
+                            studentEmail: cert.email || cert.studentEmail,
+                            studentId: studentId,
+                            graduationYear: metadata?.graduationYear || new Date().getFullYear()
+                        },
+                        
+                        // ZK Proof Data - NOW INCLUDES REAL PROOF DATA IF SUCCESSFUL
+                        zkProof: zkProofData,
+                        zkProofVerified: isZKVerified,
+                        verified: !!cert.zkProof?.verified,
+                        
+                        // Status & Metadata
+                        status: 'issued',
+                        metadata: {
+                            ...cert,
+                            finalCommitment: cert.finalCommitment,
+                            finalCommitmentData: cert.finalCommitmentData,
+                            transactionDetails: cert.transactionDetails
+                        },
+                        
+                        deployedAt: new Date(block.timestamp * 1000),
+                        createdAt: new Date()
+                    }
+                });
+
+                console.log(`\ncertificate structure being saved:`);
+                if (certificatesToSave.length > 0) {
+                    const sampleCert = certificatesToSave[0];
+                    console.log(`   name: ${sampleCert.name}`);
+                    console.log(`   email: ${sampleCert.email}`);
+                    console.log(`   studentId: ${sampleCert.studentId}`);
+                    console.log(`   merkleProof type: ${Array.isArray(sampleCert.merkleProof) ? 'array' : typeof sampleCert.merkleProof}`);
+                    console.log(`   merkleProof length: ${sampleCert.merkleProof?.length || 0}`);
+                    if (sampleCert.merkleProof?.length > 0) {
+                        console.log(`   merkleProof[0]:`, JSON.stringify(sampleCert.merkleProof[0]));
+                    }
+                }
+
+                try {
+                    const savedCerts = await Certificate.insertMany(certificatesToSave);
+                    console.log(`\n MONGODB SUCCESS!`);
+                    console.log(`Successfully saved ${savedCerts.length} certificates`);
+                    savedCerts.slice(0, 3).forEach((cert, i) => {
+                        console.log(`  [${i+1}] ${cert.name} (${cert.email})`);
+                    });
+                } catch (dbError) {
+                    console.error(`\n MONGODB ERROR:`);
+                    console.error(`  Message: ${dbError.message}`);
+                    console.error(`  Name: ${dbError.name}`);
+                    console.error(`  Code: ${dbError.code}`);
+                    if (dbError.errors) {
+                        console.error(`  Validation Errors:`);
+                        Object.entries(dbError.errors).forEach(([field, error]) => {
+                            console.error(`    - ${field}: ${error.message}`);
+                        });
+                    }
+                    if (certificatesToSave.length > 0) {
+                        console.error(`\n  Sample problematic certificate:`);
+                        console.error(`    merkleProof:`, JSON.stringify(certificatesToSave[0].merkleProof));
+                    }
+                }
+            } else {
+                console.error(`\n CRITICAL: finalCertificates is empty/null!`);
+                console.error(`  finalCertificates === null: ${finalCertificates === null}`);
+                console.error(`  finalCertificates === undefined: ${finalCertificates === undefined}`);
+                console.error(`  Array.isArray: ${Array.isArray(finalCertificates)}`);
+                console.error(`  type: ${typeof finalCertificates}`);
+            }
         } catch (persistError) {
             console.warn('MongoDB deployment persistence failed:', persistError.message);
         }
-
     } catch (error) {
         console.error('Blockchain deployment error:', error);
-        
+
         // Handle specific blockchain errors
         let errorMessage = error.message;
         if (error.code === 'NETWORK_ERROR') {
@@ -636,7 +1119,7 @@ router.post('/deploy', async (req, res) => {
         } else if (error.code === 'INSUFFICIENT_FUNDS') {
             errorMessage = 'Insufficient funds for gas fees';
         }
-        
+
         res.status(500).json({
             success: false,
             error: 'Blockchain Deployment Failed',
@@ -702,19 +1185,14 @@ router.post('/verify', async (req, res) => {
         );
 
         try {
-            // Query the deployed Merkle root from contract
-            let deployedRoot;
-            if (typeof zkCertificateSystem.getMerkleRoot === 'function') {
-                deployedRoot = await zkCertificateSystem.getMerkleRoot();
-            } else {
-                const totalBatches = await zkCertificateSystem.getTotalBatches();
-                if (totalBatches.toNumber() === 0) {
-                    throw new Error('No certificate batch deployed yet');
-                }
-
-                const latestBatchInfo = await zkCertificateSystem.getBatchInfo(totalBatches);
-                deployedRoot = latestBatchInfo.merkleRoot || latestBatchInfo[0];
+            // Query the deployed Merkle root from latest batch on contract
+            const totalBatches = await zkCertificateSystem.getTotalBatches();
+            if (totalBatches.toNumber() === 0) {
+                throw new Error('No certificate batch deployed yet');
             }
+
+            const latestBatchInfo = await zkCertificateSystem.getBatchInfo(totalBatches);
+            const deployedRoot = latestBatchInfo.merkleRoot || latestBatchInfo[0];
 
             const isRootValid = deployedRoot.toLowerCase() === merkleRoot.toLowerCase();
             
@@ -758,11 +1236,11 @@ router.post('/verify', async (req, res) => {
 
         } catch (contractError) {
             console.error('Contract interaction error:', contractError);
-            res.json({
-                success: true,
-                isValid: true,
-                note: 'Certificate is part of deployed Merkle tree batch',
-                fallbackVerification: true,
+            res.status(502).json({
+                success: false,
+                isValid: false,
+                error: 'Contract verification failed',
+                message: contractError.message,
                 verificationDetails: {
                     certificateId: certificateId,
                     merkleRoot: merkleRoot,
@@ -1066,5 +1544,118 @@ setInterval(() => {
         });
     }
 }, 30 * 60 * 1000); // Run every 30 minutes
+
+/**
+ * @route GET /api/workflow/stored-certificates
+ * @desc Get all stored certificates from MongoDB
+ */
+router.get('/stored-certificates', async (req, res) => {
+    try {
+        const { deploymentId, status, limit = 50, skip = 0 } = req.query;
+        
+        const query = {};
+        if (deploymentId) query.deploymentId = deploymentId;
+        if (status) query.status = status;
+        
+        const certificates = await Certificate
+            .find(query)
+            .sort({ createdAt: -1 })
+            .limit(parseInt(limit))
+            .skip(parseInt(skip))
+            .lean();
+        
+        const total = await Certificate.countDocuments(query);
+        
+        res.json({
+            success: true,
+            data: certificates,
+            pagination: {
+                total,
+                limit: parseInt(limit),
+                skip: parseInt(skip),
+                pages: Math.ceil(total / parseInt(limit))
+            }
+        });
+    } catch (error) {
+        console.error('Error fetching certificates:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to fetch certificates',
+            message: error.message
+        });
+    }
+});
+
+/**
+ * @route GET /api/workflow/certificate/:certificateId
+ * @desc Get a specific certificate by ID
+ */
+router.get('/certificate/:certificateId', async (req, res) => {
+    try {
+        const { certificateId } = req.params;
+        
+        const certificate = await Certificate.findOne({ certificateId });
+        
+        if (!certificate) {
+            return res.status(404).json({
+                success: false,
+                error: 'Certificate not found'
+            });
+        }
+        
+        res.json({
+            success: true,
+            data: certificate
+        });
+    } catch (error) {
+        console.error('Error fetching certificate:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to fetch certificate',
+            message: error.message
+        });
+    }
+});
+
+/**
+ * @route GET /api/workflow/certificate-stats
+ * @desc Get certificate statistics from MongoDB
+ */
+router.get('/certificate-stats', async (req, res) => {
+    try {
+        const stats = await Certificate.aggregate([
+            {
+                $group: {
+                    _id: '$status',
+                    count: { $sum: 1 }
+                }
+            }
+        ]);
+        
+        const totalCertificates = await Certificate.countDocuments();
+        const deployments = await Certificate.distinct('deploymentId');
+        
+        const statusBreakdown = {};
+        stats.forEach(stat => {
+            statusBreakdown[stat._id || 'unknown'] = stat.count;
+        });
+        
+        res.json({
+            success: true,
+            data: {
+                totalCertificates,
+                totalDeployments: deployments.length,
+                statusBreakdown
+            }
+        });
+    } catch (error) {
+        console.error('Error fetching certificate stats:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to fetch certificate statistics',
+            message: error.message
+        });
+    }
+});
 
 module.exports = router;

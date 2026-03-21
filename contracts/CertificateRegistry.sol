@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.4;
+pragma solidity ^0.8.17;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
@@ -11,7 +11,6 @@ import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
  * Only stores Merkle roots on-chain, preserving student privacy
  */
 contract CertificateRegistry is Ownable, ReentrancyGuard {
-    
     struct BatchInfo {
         bytes32 merkleRoot;
         string institutionName;

@@ -33,10 +33,15 @@ router.post('/generate', async (req, res) => {
             });
         }
 
+        console.log(` ZK Proof Generation Request:`, {
+            studentId: value.studentId,
+            subjectCount: value.subjects.length
+        });
+
         // Generate ZK proof
         const proofData = await ZKProofService.generateProof(value);
 
-        res.status(200).json({
+        const response = {
             success: true,
             message: 'ZK proof generated successfully',
             data: {
@@ -44,7 +49,11 @@ router.post('/generate', async (req, res) => {
                 publicSignals: proofData.publicSignals,
                 commitment: proofData.commitment
             }
-        });
+        };
+        
+        console.log(` ZK Proof Generated for studentId: ${value.studentId}`);
+
+        res.status(200).json(response);
 
     } catch (error) {
         console.error('ZK proof generation error:', error);

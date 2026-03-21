@@ -4,19 +4,16 @@
   "description": "Privacy-preserving bulk degree certificate generation and verification system using Zero-Knowledge Proofs",
   "main": "index.js",
   "scripts": {
-    "compile-circuits": "cd circuits && circom certificate.circom --r1cs --wasm --sym",
+    "compile-circuits": "cd circuits && mkdir -p circuit_builds && circom certificate_simple.circom --r1cs --wasm --sym -l ../node_modules --output circuit_builds && cp circuit_builds/certificate_simple.r1cs ./certificate_simple.r1cs && cp circuit_builds/certificate_simple_js/certificate_simple.wasm ./certificate_simple.wasm",
     "setup-ptau": "cd circuits && snarkjs powersoftau new bn128 14 pot14_0000.ptau && snarkjs powersoftau contribute pot14_0000.ptau pot14_0001.ptau --name=\"First contribution\" -e=\"random text\" && snarkjs powersoftau prepare phase2 pot14_0001.ptau pot14_final.ptau -v",
-    "generate-keys": "cd circuits && snarkjs groth16 setup certificate.r1cs pot14_final.ptau certificate_0000.zkey && snarkjs zkey contribute certificate_0000.zkey certificate_0001.zkey --name=\"First contribution\" -e=\"Another random text\" && snarkjs zkey export verificationkey certificate_0001.zkey verification_key.json",
+    "generate-keys": "cd circuits && mkdir -p ../keys && snarkjs groth16 setup certificate_simple.r1cs pot14_final.ptau certificate_simple_0000.zkey && snarkjs zkey contribute certificate_simple_0000.zkey certificate_simple_0001.zkey --name=\"First contribution\" -e=\"Another random text\" && cp certificate_simple_0001.zkey ../keys/certificate_simple.zkey && snarkjs zkey export verificationkey certificate_simple_0001.zkey ../keys/verification_key.json",
     "compile": "hardhat compile",
     "test": "hardhat test",
     "node": "hardhat node",
     "deploy": "hardhat run scripts/deploy.js --network ganache",
     "deploy:localhost": "hardhat run scripts/deploy.js --network localhost",
     "deploy:ganache": "hardhat run scripts/deploy.js --network ganache",
-    "deploy:optimism-sepolia": "hardhat run scripts/deploy.js --network optimismSepolia",
-    "deploy:arbitrum-sepolia": "hardhat run scripts/deploy.js --network arbitrumSepolia",
-    "deploy:base-sepolia": "hardhat run scripts/deploy.js --network baseSepolia",
-    "deploy:polygon-zkevm-cardona": "hardhat run scripts/deploy.js --network polygonZkEvmCardona",
+    "deploy:zksync-sepolia": "hardhat run scripts/deploy.js --network zksyncSepholia",
     "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
     "dev:backend": "cd backend && npm run dev",
     "dev:frontend": "cd frontend && npm run dev",
@@ -41,16 +38,16 @@
     "chai": "^4.3.6",
     "concurrently": "^7.6.0",
     "ethereum-waffle": "^3.4.4",
-    "hardhat": "^2.9.9"
+    "ethers": "^5.7.2",
+    "hardhat": "^2.28.6"
   },
   "dependencies": {
-    "@openzeppelin/contracts": "^4.7.3",
+    "@openzeppelin/contracts": "^4.9.6",
     "circomlib": "^2.0.5",
     "crypto": "^1.0.1",
     "csv-parser": "^3.0.0",
     "dotenv": "^16.4.5",
-    "ethers": "^5.7.0",
     "merkletreejs": "^0.2.32",
-    "snarkjs": "^0.4.27"
+    "snarkjs": "^0.7.6"
   }
 }

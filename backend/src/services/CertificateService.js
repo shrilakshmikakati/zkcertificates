@@ -132,6 +132,12 @@ class CertificateService {
             'subject5'
         ];
 
+        const sampleData = [
+            ['STU001', 'Alice Johnson', 'alice@example.edu', 85, 88, 92, 79, 90],
+            ['STU002', 'Bob Smith', 'bob@example.edu', 72, 76, 81, 69, 74],
+            ['STU003', 'Carol Davis', 'carol@example.edu', 91, 89, 94, 87, 93]
+        ];
+
       
         let csvContent = headers.join(',') + '\n';
         sampleData.forEach(row => {

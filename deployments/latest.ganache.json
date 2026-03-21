@@ -1,0 +1,26 @@
+{
+  "network": "ganache",
+  "providerNetworkName": "unknown",
+  "chainId": 1337,
+  "deployer": "0x1A3E054cDBd544243340Cd9157D411CBb480a52B",
+  "timestamp": "2026-03-21T04:52:09.336Z",
+  "contracts": {
+    "PlaceholderVerifier": {
+      "address": "0x42633D6709Ba541Ba3A4a86A4A2A20DbbF43aE97",
+      "transactionHash": "0x"
+    },
+    "CertificateRegistry": {
+      "address": "0xca8f41b1F518CC30F278d1c77F363F842B882dFF",
+      "transactionHash": "0x7a106c2ad37f3ac57abd7451b871405758d40d1672005cf93969bcffc3adb2c4"
+    },
+    "CertificateVerifier": {
+      "address": "0x9668d8d69B03935E3E4BD20835FEe5539a3336c2",
+      "transactionHash": "0xb990289a7c543ae768e768930e351a875a2c4aeb47497c76d114cd559f7459f5",
+      "type": "Groth16_ZK_Verifier"
+    },
+    "ZKCertificateSystem": {
+      "address": "0xDb2D3362884D1c881eAb02e4c9492DB6d267f156",
+      "transactionHash": "0x9b46679bbc9af18bf989d11971666f9631e5bdfbe2cfd6c9af9cf199849c1a21"
+    }
+  }
+}

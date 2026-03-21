@@ -3,6 +3,7 @@ const multer = require('multer');
 const fs = require('fs');
 const path = require('path');
 const Joi = require('joi');
+const JSZip = require('jszip');
 const csv = require('csv-parser');
 const XLSX = require('xlsx');
 
@@ -305,24 +306,32 @@ router.post('/bulk-download', async (req, res) => {
             });
         }
 
-        // For now, return individual download links
-        // In production, implement ZIP creation
-        const downloadLinks = certificates.map((cert, index) => ({
-            certificateId: cert.certificateId,
-            studentName: cert.name,
-            downloadUrl: `/api/certificates/download-pdf`,
-            downloadData: {
-                studentData: cert,
-                template: template || {}
-            }
-        }));
+        const zip = new JSZip();
 
-        res.json({
-            success: true,
-            message: `Prepared ${certificates.length} certificates for download`,
-            downloads: downloadLinks,
-            note: 'Use individual download endpoints for each certificate'
+        for (const cert of certificates) {
+            const pdfBuffer = await DynamicCertificateService.generateDynamicPDFCertificate(
+                cert,
+                template || {}
+            );
+
+            const safeName = (cert.name || cert.studentName || cert.certificateId || 'certificate')
+                .toString()
+                .replace(/[^a-zA-Z0-9]/g, '_');
+            const fileName = `${safeName}_certificate.pdf`;
+
+            zip.file(fileName, pdfBuffer);
+        }
+
+        const zipBuffer = await zip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE' });
+        const archiveName = `certificates_${Date.now()}.zip`;
+
+        res.set({
+            'Content-Type': 'application/zip',
+            'Content-Disposition': `attachment; filename="${archiveName}"`,
+            'Content-Length': zipBuffer.length
         });
+
+        res.send(zipBuffer);
 
     } catch (error) {
         console.error('Bulk download error:', error);

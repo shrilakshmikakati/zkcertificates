@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Layout from '../src/components/Layout';
+import { apiUrl } from '../src/lib/api';
 
 export default function GenerateProof() {
   const router = useRouter();
@@ -15,7 +16,7 @@ export default function GenerateProof() {
 
   const fetchDashboardStats = async () => {
     try {
-      const response = await fetch('http://localhost:3001/api/workflow/dashboard-stats');
+      const response = await fetch(apiUrl('/api/workflow/dashboard-stats'));
       if (response.ok) {
         const data = await response.json();
         if (data.success && !data.data.isEmpty) {
@@ -58,7 +59,7 @@ export default function GenerateProof() {
       const formData = new FormData();
       formData.append('file', file);
 
-      const response = await fetch('http://localhost:3001/api/workflow/parse', {
+      const response = await fetch(apiUrl('/api/workflow/parse'), {
         method: 'POST',
         body: formData,
       });

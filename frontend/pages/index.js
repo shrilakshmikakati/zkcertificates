@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Layout from '../src/components/Layout';
+import { apiUrl } from '../src/lib/api';
 
 export default function Home() {
   const [dashboardStats, setDashboardStats] = useState(null);
@@ -12,7 +13,7 @@ export default function Home() {
 
   const fetchDashboardStats = async () => {
     try {
-      const response = await fetch('http://localhost:3001/api/workflow/dashboard-stats');
+      const response = await fetch(apiUrl('/api/workflow/dashboard-stats'));
       if (response.ok) {
         const data = await response.json();
         if (data.success) {

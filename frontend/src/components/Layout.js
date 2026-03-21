@@ -7,7 +7,8 @@ import { useState } from 'react';
 const navigation = [
   { name: 'Dashboard', href: '/' },
   { name: 'Generate Proof', href: '/generate-proof' },
-  { name: 'Data Verification', href: '/verify' },
+  { name: 'Process & Map', href: '/verify' },
+  { name: 'View Data', href: '/data-verification' },
   { name: 'Issue Certificates', href: '/issue' },
   { name: 'Documentation', href: '/docs' }
 ];

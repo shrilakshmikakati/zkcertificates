@@ -1,8 +1,17 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.4;
+pragma solidity ^0.8.17;
 
 import "./CertificateRegistry.sol";
 import "./IVerifier.sol";
+
+/**
+ * @dev Structure for ZK proof components
+ */
+struct ZKProof {
+    uint[2] a;
+    uint[2][2] b;
+    uint[2] c;
+}
 
 /**
  * @title ZKCertificateSystem
@@ -10,7 +19,6 @@ import "./IVerifier.sol";
  * Allows privacy-preserving verification of academic achievements
  */
 contract ZKCertificateSystem is CertificateRegistry {
-    
     // ZK proof verifier contract
     IVerifier public immutable verifier;
     
@@ -28,7 +36,7 @@ contract ZKCertificateSystem is CertificateRegistry {
         bool allSubjectsPassed
     );
     
-    constructor(address _verifier) {
+    constructor(address _verifier) CertificateRegistry() {
         require(_verifier != address(0), "Invalid verifier address");
         verifier = IVerifier(_verifier);
     }
@@ -115,13 +123,4 @@ contract ZKCertificateSystem is CertificateRegistry {
         require(batches[batchId].merkleRoot != bytes32(0), "Batch does not exist");
         return batches[batchId].totalStudents;
     }
-}
-
-/**
- * @dev Structure for ZK proof components
- */
-struct ZKProof {
-    uint[2] a;
-    uint[2][2] b;
-    uint[2] c;
 }

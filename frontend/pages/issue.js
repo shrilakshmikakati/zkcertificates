@@ -2,14 +2,14 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import Layout from '../src/components/Layout';
+import { apiUrl } from '../src/lib/api';
+import { getNetworkConfig, getNetworkName } from '../src/lib/networks';
 
 const NETWORK_OPTIONS = [
   { value: 'ganache', label: 'Ganache Local (1337)', layer: 'Local EVM (L1 simulation)' },
   { value: 'localhost', label: 'Hardhat Local (31337)', layer: 'Local EVM (L1 simulation)' },
-  { value: 'optimismSepolia', label: 'Optimism Sepolia', layer: 'Layer 2 Rollup' },
-  { value: 'arbitrumSepolia', label: 'Arbitrum Sepolia', layer: 'Layer 2 Rollup' },
-  { value: 'baseSepolia', label: 'Base Sepolia', layer: 'Layer 2 Rollup' },
-  { value: 'polygonZkEvmCardona', label: 'Polygon zkEVM Cardona', layer: 'Layer 2 Rollup' }
+  { value: 'zksyncSepholia', label: 'zkSync Sepolia (300)', layer: 'Layer 2 Rollup - Testnet' },
+  { value: 'zksyncMainnet', label: 'zkSync Mainnet (324)', layer: 'Layer 2 Rollup' },
 ];
 
 export default function IssueCertificates() {
@@ -21,7 +21,7 @@ export default function IssueCertificates() {
   const [deploymentResults, setDeploymentResults] = useState(null);
   const [verificationData, setVerificationData] = useState(null);
   const [showVerification, setShowVerification] = useState(false);
-  const [currentStep, setCurrentStep] = useState('ready'); // ready, generating, complete, deploying, deployed
+  const [currentStep, setCurrentStep] = useState('ready'); 
   const [zkProofStats, setZkProofStats] = useState(null);
   const [dashboardStats, setDashboardStats] = useState(null);
   const [selectedNetwork, setSelectedNetwork] = useState('ganache');
@@ -33,7 +33,6 @@ export default function IssueCertificates() {
       setSelectedNetwork(storedNetwork);
     }
 
-    // Load verified student data from localStorage (set by verify.js)
     const savedData = localStorage.getItem('verifiedStudentData');
     if (savedData) {
       const data = JSON.parse(savedData);
@@ -92,7 +91,7 @@ export default function IssueCertificates() {
     lastDashboardFetchRef.current = now;
 
     try {
-      const response = await fetch('http://localhost:3001/api/workflow/dashboard-stats');
+      const response = await fetch(apiUrl('/api/workflow/dashboard-stats'));
       if (response.ok) {
         const data = await response.json();
         if (data.success) {
@@ -116,7 +115,6 @@ export default function IssueCertificates() {
     setCurrentStep('generating');
 
     try {
-      // Generate certificates for all students
       const certificates = studentData.certificates.map((student, idx) => ({
         ...student,
         certificateId: student.certificateId || `CERT${Date.now()}${idx}`,
@@ -138,12 +136,6 @@ export default function IssueCertificates() {
 
       setCurrentStep('complete');
 
-      // Automatically deploy to blockchain after certificate generation
-      console.log(' Auto-deploying certificates to blockchain...');
-      setTimeout(() => {
-        deployToBlockchain();
-      }, 1000); // Small delay to let UI update
-
     } catch (error) {
       console.error('Error generating certificates:', error);
       alert(`Error generating certificates: ${error.message}`);
@@ -154,7 +146,7 @@ export default function IssueCertificates() {
 
   const downloadCertificate = async (certificate) => {
     try {
-      const response = await fetch('http://localhost:3001/api/workflow/generate-pdf', {
+      const response = await fetch(apiUrl('/api/workflow/generate-pdf'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -203,18 +195,39 @@ export default function IssueCertificates() {
 
     setIsGenerating(true);
     try {
-      // Download each certificate individually with delay
-      for (let i = 0; i < generatedCertificates.length; i++) {
-        const certificate = generatedCertificates[i];
-        await downloadCertificate(certificate);
+      const response = await fetch(apiUrl('/api/certificates/bulk-download'), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          certificates: generatedCertificates,
+          template: {
+            type: 'elegant',
+            title: 'CERTIFICATE OF COMPLETION',
+            colors: {
+              primary: '#2c3e50',
+              secondary: '#3498db',
+              accent: '#e74c3c'
+            }
+          }
+        })
+      });
 
-        // Add delay between downloads
-        if (i < generatedCertificates.length - 1) {
-          await new Promise(resolve => setTimeout(resolve, 1000));
-        }
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Bulk download failed');
       }
-      
-      alert(`Successfully downloaded ${generatedCertificates.length} certificates!`);
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `certificates_${new Date().toISOString().slice(0, 10)}.zip`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
     } catch (error) {
       console.error('Error downloading all certificates:', error);
       alert('Failed to download certificates. Please try again.');
@@ -233,25 +246,155 @@ export default function IssueCertificates() {
     setCurrentStep('deploying');
 
     try {
-      const deployResponse = await fetch('http://localhost:3001/api/workflow/deploy', {
+      // Extract student records from multiple sources
+      let studentRecords = [];
+      
+      console.log(' Deployment Debug:');
+      console.log('  generatedCertificates:', generatedCertificates.length);
+      console.log('  studentData:', studentData ? JSON.stringify({keys: Object.keys(studentData), certificatesCount: Array.isArray(studentData.certificates) ? studentData.certificates.length : 0}) : 'null');
+      
+      // Priority 1: Use generatedCertificates if they have actual data
+      if (generatedCertificates.length > 0) {
+        const firstCert = generatedCertificates[0];
+        console.log(`  Priority 1 check - First generated cert:`, {name: firstCert.name, email: firstCert.email, hasPlaceholder: firstCert.name?.includes('Certificate')});
+        if (firstCert.name && !firstCert.name.includes('Certificate')) {
+          studentRecords = generatedCertificates;
+          console.log(' PRIORITY 1 SUCCESS: Using', studentRecords.length, 'real student records from generatedCertificates');
+          if (studentRecords.length > 0) {
+            console.log('   Sample student:', {name: studentRecords[0].name, email: studentRecords[0].email, student_id: studentRecords[0].student_id});
+          }
+        } else {
+          console.warn('  generatedCertificates have placeholder names - skipping Priority 1');
+        }
+      } else {
+        console.warn('  Priority 1 skipped - no generatedCertificates');
+      }
+      
+      // Priority 2: Check if studentData has certificates
+      if (studentRecords.length === 0 && studentData.certificates) {
+        console.log(`  Priority 2 check - studentData.certificates type:`, Array.isArray(studentData.certificates) ? 'array' : typeof studentData.certificates);
+        if (Array.isArray(studentData.certificates)) {
+          studentRecords = studentData.certificates;
+          console.log('PRIORITY 2 SUCCESS: Using', studentRecords.length, 'certificates from studentData');
+          if (studentRecords.length > 0) {
+            console.log('   Sample student:', {name: studentRecords[0].name, email: studentRecords[0].email, student_id: studentRecords[0].student_id});
+          }
+        }
+      } else if (studentRecords.length === 0) {
+        console.warn('  Priority 2 skipped - no certificates in studentData');
+      }
+      
+      // Priority 3: Check localStorage directly for fileAnalysisData with all student records
+      if (studentRecords.length === 0) {
+        const fileAnalysisData = localStorage.getItem('fileAnalysisData');
+        console.log(`  Priority 3 check - fileAnalysisData exists:`, !!fileAnalysisData);
+        if (fileAnalysisData) {
+          const parsed = JSON.parse(fileAnalysisData);
+          const hasAllData = parsed.fileAnalysis && parsed.fileAnalysis.allData && parsed.fileAnalysis.allData.length > 0;
+          console.log(`    fileAnalysis.allData exists and has ${parsed.fileAnalysis?.allData?.length || 0} records`);
+          if (hasAllData) {
+            // Normalize raw Excel data to standard field names
+            studentRecords = parsed.fileAnalysis.allData.map((row, idx) => {
+              // Try different possible column names from Excel
+              const name = row.name || row['Student Name'] || row['STUDENT NAME'] || row['Name'] || row['NAME'];
+              const email = row.email || row['Email'] || row['EMAIL'] || row['Student Email'] || row['STUDENT EMAIL'];
+              const student_id = row.student_id || row.studentId || row['Student ID'] || row['STUDENT ID'] || row['ID'] || row['id'];
+              
+              return {
+                ...row,  // Keep all original Excel columns
+                name: name,  // Normalize to lowercase field names
+                email: email,
+                student_id: student_id,
+                certificateId: `CERT${Date.now()}_${idx}`
+              };
+            });
+            console.log(' PRIORITY 3 SUCCESS: Using', studentRecords.length, 'raw student records from Excel file');
+            if (studentRecords.length > 0) {
+              console.log('   Sample from Excel (raw):', {
+                originalKeys: Object.keys(parsed.fileAnalysis.allData[0]),
+                normalizedRecord: {
+                  name: studentRecords[0].name,
+                  email: studentRecords[0].email,
+                  student_id: studentRecords[0].student_id
+                }
+              });
+            }
+          }
+        }
+      } else if (studentRecords.length === 0) {
+        console.warn('  Priority 3 skipped - already have records from higher priority');
+      }
+      
+      const deployPayload = {
+        networkSelection: selectedNetwork,
+        merkleRoot: studentData.merkleRoot,
+        totalCertificates: studentRecords.length > 0 ? studentRecords.length : (generatedCertificates.length || 30),
+        metadata: {
+          institutionName: studentData.institutionName || 'Educational Institution',
+          courseName: studentData.courseName || 'Certificate Program',
+          graduationYear: studentData.graduationYear || new Date().getFullYear(),
+          totalStudents: studentRecords.length > 0 ? studentRecords.length : (generatedCertificates.length || 30),
+          fileName: studentData.fileName,
+          generatedAt: new Date().toISOString()
+        },
+        zkProofs: studentData.zkProofs || [],
+        enableZKVerification: studentData.enabledPrivacy || false
+      };
+      
+      // DEBUG: Log what's in studentData.zkProofs
+      console.log('🔍 DEBUG: studentData.zkProofs:', {
+        isArray: Array.isArray(studentData.zkProofs),
+        length: studentData.zkProofs?.length || 0,
+        exists: !!studentData.zkProofs,
+        fullData: JSON.stringify(studentData.zkProofs)
+      });
+      
+      // If we have student records with actual data, send them
+      if (studentRecords.length > 0) {
+        const firstRecord = studentRecords[0];
+        // Check if we have real data (not placeholder names like "Certificate 1")
+        const recordName = firstRecord.name || firstRecord['Student Name'] || firstRecord['STUDENT NAME'];
+        const hasRealData = recordName && !recordName.includes('Certificate');
+        
+        deployPayload.certificates = studentRecords;
+        console.log('📤 SENDING DEPLOY PAYLOAD WITH', studentRecords.length, 'certificates');
+        console.log('   First certificate:', {
+          name: studentRecords[0].name,
+          email: studentRecords[0].email,
+          student_id: studentRecords[0].student_id,
+          hasRealData: hasRealData
+        });
+        
+        if (hasRealData) {
+          console.log('   All records have data');
+        } else {
+          console.log('    Records may have placeholder data');
+        }
+      } else {
+        console.log('  NO student records collected - certificates field will NOT be in deploy payload');
+        console.log('   Backend will try to auto-extract from session data');
+      }
+
+      const deployResponse = await fetch(apiUrl('/api/workflow/deploy'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          networkSelection: selectedNetwork,
-          merkleRoot: studentData.merkleRoot,
-          totalCertificates: generatedCertificates.length,
-          metadata: {
-            institutionName: studentData.institutionName || 'Educational Institution',
-            courseName: studentData.courseName || 'Certificate Program',
-            graduationYear: studentData.graduationYear || new Date().getFullYear(),
-            totalStudents: generatedCertificates.length,
-            fileName: studentData.fileName,
-            generatedAt: new Date().toISOString()
-          }
-        })
+        body: JSON.stringify(deployPayload)
       });
+
+      console.log(' Deploy request sent:');
+      console.log('   - Has certificates field:', !!deployPayload.certificates);
+      console.log('   - Certificates count:', deployPayload.certificates?.length || 0);
+      console.log('   - Network:', deployPayload.networkSelection);
+      console.log('   - Total certificates in payload:', deployPayload.totalCertificates);
+      console.log('   - Has zkProofs:', !!deployPayload.zkProofs && deployPayload.zkProofs.length > 0);
+      console.log('   - ZK Proofs count:', deployPayload.zkProofs?.length || 0);
+      console.log('   - Enable ZK Verification:', deployPayload.enableZKVerification);
+      if (deployPayload.zkProofs && deployPayload.zkProofs.length > 0) {
+        const successfulProofs = deployPayload.zkProofs.filter(p => p.status === 'success').length;
+        console.log(`   - Successful ZK Proofs: ${successfulProofs}/${deployPayload.zkProofs.length}`);
+      }
 
       if (!deployResponse.ok) {
         let errorMessage = `Deployment failed (${deployResponse.status})`;
@@ -315,7 +458,7 @@ export default function IssueCertificates() {
       };
 
       try {
-        const verifyResponse = await fetch('http://localhost:3001/api/workflow/verify', {
+        const verifyResponse = await fetch(apiUrl('/api/workflow/verify'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -330,7 +473,7 @@ export default function IssueCertificates() {
         if (verifyResponse.ok) {
           const verifyData = await verifyResponse.json();
           batchVerification = {
-            verified: verifyData.isValid ?? verifyData.valid ?? true,
+            verified: verifyData.isValid ?? verifyData.valid ?? false,
             onChainData: verifyData.onChainData,
             note: (verifyData.isValid ?? verifyData.valid)
               ? 'Merkle root verified on-chain'
@@ -338,15 +481,15 @@ export default function IssueCertificates() {
           };
         } else {
           batchVerification = {
-            verified: true,
-            note: 'Batch verification endpoint unavailable; treating as deployed batch'
+            verified: false,
+            note: 'Batch verification endpoint unavailable'
           };
         }
       } catch (verifyError) {
         console.warn('Batch verification request failed:', verifyError);
         batchVerification = {
-          verified: true,
-          note: 'Verification service unavailable; treating as deployed batch'
+          verified: false,
+          note: 'Verification service unavailable'
         };
       }
 
@@ -380,7 +523,7 @@ export default function IssueCertificates() {
       });
       
       setShowVerification(true);
-      console.log(`✅ Verification complete: ${verifiedCount}/${generatedCertificates.length} certificates verified`);
+      console.log(`Verification complete: ${verifiedCount}/${generatedCertificates.length} certificates verified`);
       
     } catch (error) {
       console.error('Error verifying deployed data:', error);
@@ -449,7 +592,6 @@ export default function IssueCertificates() {
           <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
             <div className="bg-white rounded-xl shadow-sm p-12 text-center">
               <div className="mx-auto h-24 w-24 bg-yellow-100 rounded-full flex items-center justify-center mb-8">
-                <span className="text-yellow-600 text-4xl">📊</span>
               </div>
               <h2 className="text-3xl font-bold text-gray-900 mb-4">No Data Uploaded Yet</h2>
               <p className="text-lg text-gray-600 max-w-2xl mx-auto mb-8">
@@ -526,27 +668,6 @@ export default function IssueCertificates() {
         )}
 
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-          <div className="bg-white rounded-xl shadow-sm p-6 mb-8">
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">Blockchain Target</h3>
-            <p className="text-sm text-gray-600 mb-4">Frontend requests deploy/verify on the selected network.</p>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm text-gray-700 mb-1">Network</label>
-                <select
-                  value={selectedNetwork}
-                  onChange={onNetworkChange}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2"
-                >
-                  {NETWORK_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>{option.label}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="bg-gray-50 border rounded-lg px-3 py-2 text-sm text-gray-700 flex items-center">
-                {NETWORK_OPTIONS.find((option) => option.value === selectedNetwork)?.layer || 'Unknown Layer'}
-              </div>
-            </div>
-          </div>
 
           {/* Step 1: Ready to Generate */}
           {currentStep === 'ready' && (
@@ -684,10 +805,26 @@ export default function IssueCertificates() {
                   <div className="bg-purple-50 p-6 rounded-lg">
                     <h3 className="font-semibold text-purple-800 mb-2">Deploy to Blockchain</h3>
                     <p className="text-sm text-purple-600 mb-4">Deploy Merkle tree for verification</p>
+                    <div className="mb-4 text-left">
+                      <label className="block text-sm font-medium text-purple-800 mb-1">Target Network</label>
+                      <select
+                        value={selectedNetwork}
+                        onChange={onNetworkChange}
+                        disabled={isDeploying}
+                        className="w-full border border-purple-300 rounded-lg px-3 py-2 text-sm bg-white disabled:bg-gray-100"
+                      >
+                        {NETWORK_OPTIONS.map((option) => (
+                          <option key={option.value} value={option.value}>{option.label}</option>
+                        ))}
+                      </select>
+                      <p className="mt-1 text-xs text-purple-600">
+                        {NETWORK_OPTIONS.find((o) => o.value === selectedNetwork)?.layer || 'Unknown Layer'}
+                      </p>
+                    </div>
                     <button
                       onClick={deployToBlockchain}
                       disabled={isDeploying}
-                      className="bg-purple-600 text-white px-6 py-3 rounded-lg hover:bg-purple-700 transition-colors disabled:bg-gray-400"
+                      className="w-full bg-purple-600 text-white px-6 py-3 rounded-lg hover:bg-purple-700 transition-colors disabled:bg-gray-400"
                     >
                       {isDeploying ? 'Deploying...' : 'Deploy to Blockchain'}
                     </button>

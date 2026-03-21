@@ -18,6 +18,33 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 const isProduction = process.env.NODE_ENV === 'production';
 
+const NETWORK_RPC_ENV_MAP = {
+    zksyncSepholia: 'ZKSYNC_SEPHOLIA_RPC_URL'
+};
+
+const LOCAL_NETWORKS = ['ganache', 'localhost', 'hardhat'];
+
+function validateCriticalEnv() {
+    const selectedNetwork = (process.env.BLOCKCHAIN_NETWORK || 'ganache').trim();
+    const isL2Network = Boolean(NETWORK_RPC_ENV_MAP[selectedNetwork]);
+
+    if (!isL2Network) {
+        return;
+    }
+
+    const rpcEnvKey = NETWORK_RPC_ENV_MAP[selectedNetwork];
+    const privateKey = (process.env.DEPLOYER_PRIVATE_KEY || '').trim();
+    const rpcUrl = (process.env[rpcEnvKey] || '').trim();
+
+    const missing = [];
+    if (!privateKey) missing.push('DEPLOYER_PRIVATE_KEY');
+    if (!rpcUrl) missing.push(rpcEnvKey);
+
+    if (missing.length) {
+        throw new Error(`Missing required environment variables for ${selectedNetwork}: ${missing.join(', ')}`);
+    }
+}
+
 // Security middleware
 app.use(helmet());
 app.use(cors({
@@ -126,6 +153,7 @@ app.use('*', (req, res) => {
 
 // Start server
 async function startServer() {
+    validateCriticalEnv();
     await connectDatabase();
 
     app.listen(PORT, () => {

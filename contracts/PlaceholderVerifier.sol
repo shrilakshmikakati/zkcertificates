@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.4;
+pragma solidity ^0.8.17;
 
 import "./IVerifier.sol";
 
@@ -8,6 +8,13 @@ import "./IVerifier.sol";
  * @dev Placeholder verifier for development - replace with generated verifier from circuit
  */
 contract PlaceholderVerifier is IVerifier {
+    constructor() {
+        // Allow deployment on local networks (hardhat, ganache) and zkSync Sepolia
+        require(
+            block.chainid == 1337 || block.chainid == 31337 || block.chainid == 300,
+            "PlaceholderVerifier can only be deployed on local networks or zkSync Sepolia"
+        );
+    }
     
     /**
      * @dev Placeholder verification function

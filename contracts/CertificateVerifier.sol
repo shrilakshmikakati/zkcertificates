@@ -1,194 +1,189 @@
-// SPDX-License-Identifier: MIT
-pragma solidity ^0.8.4;
+// SPDX-License-Identifier: GPL-3.0
+/*
+    Copyright 2021 0KIMS association.
 
-import "./IVerifier.sol";
+    This file is generated with [snarkJS](https://github.com/iden3/snarkjs).
 
-/**
- * @title CertificateVerifier
- * @dev Real Groth16 verifier for certificate ZK proofs
- * This contract should be generated using snarkjs from the circuit
- * For now, this is a functional verifier that performs actual verification
- */
-contract CertificateVerifier is IVerifier {
-    using Pairing for *;
-    
-    struct VerifyingKey {
-        Pairing.G1Point alpha;
-        Pairing.G2Point beta;
-        Pairing.G2Point gamma;
-        Pairing.G2Point delta;
-    }
-    
-    VerifyingKey verifyingKey;
-    
-    /**
-     * @dev Initialize the verifier with circuit-specific parameters
-     * In production, these values come from the trusted setup
-     */
-    constructor() {
-        // These are example values - in production, replace with actual circuit parameters
-        verifyingKey.alpha = Pairing.G1Point(
-            0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef,
-            0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890
-        );
-        
-        verifyingKey.beta = Pairing.G2Point(
-            [0x1111111111111111111111111111111111111111111111111111111111111111,
-             0x2222222222222222222222222222222222222222222222222222222222222222],
-            [0x3333333333333333333333333333333333333333333333333333333333333333,
-             0x4444444444444444444444444444444444444444444444444444444444444444]
-        );
-        
-        verifyingKey.gamma = Pairing.G2Point(
-            [0x5555555555555555555555555555555555555555555555555555555555555555,
-             0x6666666666666666666666666666666666666666666666666666666666666666],
-            [0x7777777777777777777777777777777777777777777777777777777777777777,
-             0x8888888888888888888888888888888888888888888888888888888888888888]
-        );
-        
-        verifyingKey.delta = Pairing.G2Point(
-            [0x9999999999999999999999999999999999999999999999999999999999999999,
-             0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa],
-            [0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb,
-             0xcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc]
-        );
-    }
+    snarkJS is a free software: you can redistribute it and/or modify it
+    under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
 
-    /**
-     * @dev Verify a ZK proof using Groth16 protocol
-     * @param _pA Proof point A
-     * @param _pB Proof point B  
-     * @param _pC Proof point C
-     * @param _publicSignals Public signals array
-     * @return True if proof is valid
-     */
-    function verifyProof(
-        uint[2] memory _pA,
-        uint[2][2] memory _pB, 
-        uint[2] memory _pC,
-        uint[1] memory _publicSignals
-    ) external view override returns (bool) {
-        
-        // Convert inputs to pairing library format
-        Pairing.G1Point memory proofA = Pairing.G1Point(_pA[0], _pA[1]);
-        Pairing.G2Point memory proofB = Pairing.G2Point([_pB[0][0], _pB[0][1]], [_pB[1][0], _pB[1][1]]);
-        Pairing.G1Point memory proofC = Pairing.G1Point(_pC[0], _pC[1]);
-        
-        // Basic input validation
-        require(_publicSignals.length == 1, "Invalid public signals length");
-        require(proofA.X != 0 || proofA.Y != 0, "Invalid proof point A");
-        require(proofC.X != 0 || proofC.Y != 0, "Invalid proof point C");
-        
-        // In production, this would perform the full Groth16 pairing check
-        // For now, we perform basic validation and assume proof is valid if inputs are well-formed
-        
-        // Create gamma_abc points for this verification (in production, stored in contract)
-        Pairing.G1Point memory gamma_abc_0 = Pairing.G1Point(
-            0xdddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd,
-            0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee
-        );
-        Pairing.G1Point memory gamma_abc_1 = Pairing.G1Point(
-            0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff,
-            0x0000000000000000000000000000000000000000000000000000000000000001
-        );
-        
-        // Calculate vk_x = gamma_abc[0] + gamma_abc[1] * publicSignals[0]
-        Pairing.G1Point memory vk_x = gamma_abc_0;
-        
-        // Add public signal contribution
-        if (_publicSignals[0] != 0) {
-            Pairing.G1Point memory contribution = Pairing.scalar_mul(gamma_abc_1, _publicSignals[0]);
-            vk_x = Pairing.addition(vk_x, contribution);
-        }
-        
-        // Simplified verification - in production this would do full pairing
-        // For demo purposes, we accept proofs that pass basic structural validation
-        return true;
-    }
-    
-    /**
-     * @dev Get verifying key information
-     * @return alphaX The X coordinate of the alpha point
-     * @return alphaY The Y coordinate of the alpha point  
-     * @return publicInputCount Number of public inputs for the circuit
-     */
-    function getVerifyingKeyInfo() external view returns (
-        uint256 alphaX,
-        uint256 alphaY,
-        uint256 publicInputCount
-    ) {
-        return (
-            verifyingKey.alpha.X,
-            verifyingKey.alpha.Y,
-            1 // This verifier supports 1 public input
-        );
-    }
-}
+    snarkJS is distributed in the hope that it will be useful, but WITHOUT
+    ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+    or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public
+    License for more details.
 
-/**
- * @title Pairing
- * @dev Elliptic curve pairing operations for BN254 curve
- * Simplified version for demo - production should use a full pairing library
- */
-library Pairing {
-    struct G1Point {
-        uint256 X;
-        uint256 Y;
-    }
+    You should have received a copy of the GNU General Public License
+    along with snarkJS. If not, see <https://www.gnu.org/licenses/>.
+*/
+
+pragma solidity >=0.7.0 <0.9.0;
+
+contract Groth16Verifier {
+    // Scalar field size
+    uint256 constant r    = 21888242871839275222246405745257275088548364400416034343698204186575808495617;
+    // Base field size
+    uint256 constant q   = 21888242871839275222246405745257275088696311157297823662689037894645226208583;
+
+    // Verification Key data
+    uint256 constant alphax  = 17048280720312083463407847426560093760434185277366643152599262935204699743301;
+    uint256 constant alphay  = 5505135083495922022587483614536592966759720627637630890952740459201969087376;
+    uint256 constant betax1  = 5107627776724112634446791546468072753046458067151575265215977711647483410190;
+    uint256 constant betax2  = 13429785847560932964608630205728554687378475332354255174938147530087718055150;
+    uint256 constant betay1  = 2445676612631454341116098375230782885702374056721842616374841380069576189478;
+    uint256 constant betay2  = 18667473468451893507244488400126910913225425914420907900252160689069241986504;
+    uint256 constant gammax1 = 11559732032986387107991004021392285783925812861821192530917403151452391805634;
+    uint256 constant gammax2 = 10857046999023057135944570762232829481370756359578518086990519993285655852781;
+    uint256 constant gammay1 = 4082367875863433681332203403145435568316851327593401208105741076214120093531;
+    uint256 constant gammay2 = 8495653923123431417604973247489272438418190587263600148770280649306958101930;
+    uint256 constant deltax1 = 15735831720339888857264033007171157989501745122148275119644283150315686107398;
+    uint256 constant deltax2 = 19723695028759139241622487990977132518544676543429220311691168497144753402099;
+    uint256 constant deltay1 = 15931590659847154955683806659375042587824995652838732776112832391418591796175;
+    uint256 constant deltay2 = 7696236918679635338348577307724361861630522511770849733529038416520908105988;
+
     
-    struct G2Point {
-        uint256[2] X;
-        uint256[2] Y;
-    }
+    uint256 constant IC0x = 9876795099709987022582916590057332196715989522854432159269584865039428562141;
+    uint256 constant IC0y = 13431759035156922701488832862892549762658278784622270816575264354690869790414;
     
-    /// @dev Return the generator of G1
-    function P1() internal pure returns (G1Point memory) {
-        return G1Point(1, 2);
-    }
+    uint256 constant IC1x = 1375683117403106596512160233130613608275070165827278560011088835936162823461;
+    uint256 constant IC1y = 15107583125225999439441751348590066803213017380959613676275839973729716780073;
     
-    /// @dev Return the generator of G2
-    function P2() internal pure returns (G2Point memory) {
-        return G2Point(
-            [0x198e9393920d483a7260bfb731fb5d25f1aa493335a9e71297e485b7aef312c2,
-             0x1800deef121f1e76426a00665e5c4479674322d4f75edadd46debd5cd992f6ed],
-            [0x090689d0585ff075ec9e99ad690c3395bc4b313370b38ef355acdadcd122975b,
-             0x12c85ea5db8c6deb4aab71808dcb408fe3d1e7690c43d37b4ce6cc0166fa7daa]
-        );
-    }
+    uint256 constant IC2x = 10116106305775767807240584428359595165201023764234082139386151300325979100299;
+    uint256 constant IC2y = 18554438496808649856182673140529197343895487451931429365638841639954876534039;
     
-    /// @dev Return true if the point is on the curve
-    function isOnCurve(G1Point memory point) internal pure returns (bool) {
-        if (point.X == 0 && point.Y == 0) return false;
-        return mulmod(point.Y, point.Y, 21888242871839275222246405745257275088696311157297823662689037894645226208583) == 
-               addmod(mulmod(mulmod(point.X, point.X, 21888242871839275222246405745257275088696311157297823662689037894645226208583), point.X, 21888242871839275222246405745257275088696311157297823662689037894645226208583), 3, 21888242871839275222246405745257275088696311157297823662689037894645226208583);
-    }
+    uint256 constant IC3x = 6540655471072612159801010327629702959103321056454149180795077156329795030804;
+    uint256 constant IC3y = 8006129218984273225678623971829324989221649361101430051417255348106581326741;
     
-    /// @dev Multiply a point by a scalar
-    function scalar_mul(G1Point memory p, uint256 s) internal view returns (G1Point memory r) {
-        uint256[3] memory input;
-        input[0] = p.X;
-        input[1] = p.Y;
-        input[2] = s;
-        bool success;
+    uint256 constant IC4x = 3907406429362638743677630895125883171008794120501609373547006575170842551216;
+    uint256 constant IC4y = 18736685174633908146629754580305669560632046228462632602398473367153985490737;
+    
+ 
+    // Memory data
+    uint16 constant pVk = 0;
+    uint16 constant pPairing = 128;
+
+    uint16 constant pLastMem = 896;
+
+    function verifyProof(uint[2] calldata _pA, uint[2][2] calldata _pB, uint[2] calldata _pC, uint[4] calldata _pubSignals) public view returns (bool) {
         assembly {
-            success := staticcall(sub(gas(), 2000), 7, input, 0x80, r, 0x60)
-            switch success case 0 { invalid() }
-        }
-        require(success, "Scalar multiplication failed");
-    }
-    
-    /// @dev Add two points
-    function addition(G1Point memory p1, G1Point memory p2) internal view returns (G1Point memory r) {
-        uint256[4] memory input;
-        input[0] = p1.X;
-        input[1] = p1.Y;
-        input[2] = p2.X;
-        input[3] = p2.Y;
-        bool success;
-        assembly {
-            success := staticcall(sub(gas(), 2000), 6, input, 0xc0, r, 0x60)
-            switch success case 0 { invalid() }
-        }
-        require(success, "Point addition failed");
-    }
-}
+            function checkField(v) {
+                if iszero(lt(v, r)) {
+                    mstore(0, 0)
+                    return(0, 0x20)
+                }
+            }
+            
+            // G1 function to multiply a G1 value(x,y) to value in an address
+            function g1_mulAccC(pR, x, y, s) {
+                let success
+                let mIn := mload(0x40)
+                mstore(mIn, x)
+                mstore(add(mIn, 32), y)
+                mstore(add(mIn, 64), s)
+
+                success := staticcall(sub(gas(), 2000), 7, mIn, 96, mIn, 64)
+
+                if iszero(success) {
+                    mstore(0, 0)
+                    return(0, 0x20)
+                }
+
+                mstore(add(mIn, 64), mload(pR))
+                mstore(add(mIn, 96), mload(add(pR, 32)))
+
+                success := staticcall(sub(gas(), 2000), 6, mIn, 128, pR, 64)
+
+                if iszero(success) {
+                    mstore(0, 0)
+                    return(0, 0x20)
+                }
+            }
+
+            function checkPairing(pA, pB, pC, pubSignals, pMem) -> isOk {
+                let _pPairing := add(pMem, pPairing)
+                let _pVk := add(pMem, pVk)
+
+                mstore(_pVk, IC0x)
+                mstore(add(_pVk, 32), IC0y)
+
+                // Compute the linear combination vk_x
+                
+                g1_mulAccC(_pVk, IC1x, IC1y, calldataload(add(pubSignals, 0)))
+                
+                g1_mulAccC(_pVk, IC2x, IC2y, calldataload(add(pubSignals, 32)))
+                
+                g1_mulAccC(_pVk, IC3x, IC3y, calldataload(add(pubSignals, 64)))
+                
+                g1_mulAccC(_pVk, IC4x, IC4y, calldataload(add(pubSignals, 96)))
+                
+
+                // -A
+                mstore(_pPairing, calldataload(pA))
+                mstore(add(_pPairing, 32), mod(sub(q, calldataload(add(pA, 32))), q))
+
+                // B
+                mstore(add(_pPairing, 64), calldataload(pB))
+                mstore(add(_pPairing, 96), calldataload(add(pB, 32)))
+                mstore(add(_pPairing, 128), calldataload(add(pB, 64)))
+                mstore(add(_pPairing, 160), calldataload(add(pB, 96)))
+
+                // alpha1
+                mstore(add(_pPairing, 192), alphax)
+                mstore(add(_pPairing, 224), alphay)
+
+                // beta2
+                mstore(add(_pPairing, 256), betax1)
+                mstore(add(_pPairing, 288), betax2)
+                mstore(add(_pPairing, 320), betay1)
+                mstore(add(_pPairing, 352), betay2)
+
+                // vk_x
+                mstore(add(_pPairing, 384), mload(add(pMem, pVk)))
+                mstore(add(_pPairing, 416), mload(add(pMem, add(pVk, 32))))
+
+
+                // gamma2
+                mstore(add(_pPairing, 448), gammax1)
+                mstore(add(_pPairing, 480), gammax2)
+                mstore(add(_pPairing, 512), gammay1)
+                mstore(add(_pPairing, 544), gammay2)
+
+                // C
+                mstore(add(_pPairing, 576), calldataload(pC))
+                mstore(add(_pPairing, 608), calldataload(add(pC, 32)))
+
+                // delta2
+                mstore(add(_pPairing, 640), deltax1)
+                mstore(add(_pPairing, 672), deltax2)
+                mstore(add(_pPairing, 704), deltay1)
+                mstore(add(_pPairing, 736), deltay2)
+
+
+                let success := staticcall(sub(gas(), 2000), 8, _pPairing, 768, _pPairing, 0x20)
+
+                isOk := and(success, mload(_pPairing))
+            }
+
+            let pMem := mload(0x40)
+            mstore(0x40, add(pMem, pLastMem))
+
+            // Validate that all evaluations ∈ F
+            
+            checkField(calldataload(add(_pubSignals, 0)))
+            
+            checkField(calldataload(add(_pubSignals, 32)))
+            
+            checkField(calldataload(add(_pubSignals, 64)))
+            
+            checkField(calldataload(add(_pubSignals, 96)))
+            
+
+            // Validate all evaluations
+            let isValid := checkPairing(_pA, _pB, _pC, _pubSignals, pMem)
+
+            mstore(0, isValid)
+             return(0, 0x20)
+         }
+     }
+ }

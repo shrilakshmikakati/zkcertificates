@@ -9,7 +9,7 @@ on:
 
 jobs:
   check:
-    name: Foundry project
+    name: Build and Test
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -19,17 +19,16 @@ jobs:
           persist-credentials: false
           submodules: recursive
 
-      - name: Install Foundry
-        uses: foundry-rs/foundry-toolchain@v1
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
 
-      - name: Show Forge version
-        run: forge --version
+      - name: Install dependencies
+        run: npm install
 
-      - name: Run Forge fmt
-        run: forge fmt --check
+      - name: Build contracts
+        run: npm run build
 
-      - name: Run Forge build
-        run: forge build --sizes
-
-      - name: Run Forge tests
-        run: forge test -vvv
+      - name: Run tests
+        run: npm test

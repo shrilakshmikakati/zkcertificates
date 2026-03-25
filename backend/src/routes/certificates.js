@@ -9,6 +9,12 @@ const CertificateService = require('../services/CertificateService');
 const MerkleService = require('../services/MerkleService');
 const ZKProofService = require('../services/ZKProofService');
 
+// ── ADD: models + DB needed for /retrieve ────────────────────────────────────
+const Certificate      = require('../models/Certificate');
+const DeploymentRecord = require('../models/DeploymentRecord');
+const { connectDatabase, isDatabaseConnected } = require('../config/database');
+// ─────────────────────────────────────────────────────────────────────────────
+
 const router = express.Router();
 
 // Configure multer for file uploads
@@ -42,38 +48,28 @@ const batchSchema = Joi.object({
 });
 
 /**
- * @route POST /api/certificates/process-csv
- * @desc Process CSV file and generate certificate batch data
+ * @route POST /api/certificates/legacy/process-csv
  */
 router.post('/process-csv', upload.single('csvFile'), async (req, res) => {
     try {
         if (!req.file) {
-            return res.status(400).json({
-                error: 'CSV file is required'
-            });
+            return res.status(400).json({ error: 'CSV file is required' });
         }
 
-        // Validate batch parameters
         const { error, value: batchData } = batchSchema.validate(req.body);
         if (error) {
-            // Clean up uploaded file
             fs.unlinkSync(req.file.path);
-            return res.status(400).json({
-                error: 'Validation Error',
-                details: error.details
-            });
+            return res.status(400).json({ error: 'Validation Error', details: error.details });
         }
 
         const students = [];
         const csvPath = req.file.path;
 
-        // Parse CSV file
         await new Promise((resolve, reject) => {
             fs.createReadStream(csvPath)
                 .pipe(csv())
                 .on('data', (row) => {
                     try {
-                        // Validate row structure
                         const studentData = CertificateService.validateStudentData(row);
                         students.push(studentData);
                     } catch (error) {
@@ -84,30 +80,24 @@ router.post('/process-csv', upload.single('csvFile'), async (req, res) => {
                 .on('error', reject);
         });
 
-        // Clean up uploaded file
         fs.unlinkSync(csvPath);
 
         if (students.length === 0) {
-            return res.status(400).json({
-                error: 'No valid student data found in CSV'
-            });
+            return res.status(400).json({ error: 'No valid student data found in CSV' });
         }
 
-        // Generate certificate commitments
         const certificates = students.map(student =>
             CertificateService.generateCertificateCommitment(student)
         );
 
-        // Build Merkle tree
         const merkleTree = MerkleService.buildMerkleTree(certificates);
         const merkleRoot = merkleTree.getHexRoot();
 
-        // Prepare batch data for blockchain
         const batchInfo = {
             ...batchData,
             merkleRoot,
             totalStudents: students.length,
-            certificates: certificates.map((cert, index) => ({
+            certificates: certificates.map((cert) => ({
                 ...cert,
                 merkleProof: merkleTree.getHexProof(cert.commitment)
             }))
@@ -117,7 +107,7 @@ router.post('/process-csv', upload.single('csvFile'), async (req, res) => {
             success: true,
             message: 'CSV processed successfully',
             data: {
-                batchId: null, // Will be set after blockchain deployment
+                batchId: null,
                 merkleRoot,
                 totalStudents: students.length,
                 institutionName: batchData.institutionName,
@@ -128,28 +118,21 @@ router.post('/process-csv', upload.single('csvFile'), async (req, res) => {
         });
 
     } catch (error) {
-        // Clean up file if error occurs
         if (req.file && fs.existsSync(req.file.path)) {
             fs.unlinkSync(req.file.path);
         }
-
         console.error('CSV processing error:', error);
-        res.status(500).json({
-            error: 'CSV Processing Failed',
-            message: error.message
-        });
+        res.status(500).json({ error: 'CSV Processing Failed', message: error.message });
     }
 });
 
 /**
- * @route GET /api/certificates/template
- * @desc Download CSV template for certificate data
+ * @route GET /api/certificates/legacy/template
  */
 router.get('/template', (req, res) => {
     try {
         const templatePath = path.join(__dirname, '../templates/certificate_template.csv');
 
-        // Generate template if it doesn't exist
         if (!fs.existsSync(templatePath)) {
             const templateData = CertificateService.generateCSVTemplate();
             fs.writeFileSync(templatePath, templateData);
@@ -158,16 +141,12 @@ router.get('/template', (req, res) => {
         res.download(templatePath, 'certificate_template.csv');
     } catch (error) {
         console.error('Template download error:', error);
-        res.status(500).json({
-            error: 'Template Download Failed',
-            message: error.message
-        });
+        res.status(500).json({ error: 'Template Download Failed', message: error.message });
     }
 });
 
 /**
- * @route POST /api/certificates/verify
- * @desc Verify a certificate using Merkle proof
+ * @route POST /api/certificates/legacy/verify
  */
 router.post('/verify', async (req, res) => {
     try {
@@ -179,10 +158,7 @@ router.post('/verify', async (req, res) => {
 
         const { error, value } = verificationSchema.validate(req.body);
         if (error) {
-            return res.status(400).json({
-                error: 'Validation Error',
-                details: error.details
-            });
+            return res.status(400).json({ error: 'Validation Error', details: error.details });
         }
 
         const isValid = MerkleService.verifyProof(
@@ -199,218 +175,51 @@ router.post('/verify', async (req, res) => {
 
     } catch (error) {
         console.error('Certificate verification error:', error);
-        res.status(500).json({
-            error: 'Verification Failed',
-            message: error.message
-        });
+        res.status(500).json({ error: 'Verification Failed', message: error.message });
     }
 });
 
 /**
- * @route POST /api/certificates/parse
- * @desc Parse uploaded CSV/XLSX file and extract student data
+ * @route POST /api/certificates/legacy/parse
  */
 router.post('/parse', upload.single('file'), async (req, res) => {
     try {
         if (!req.file) {
-            return res.status(400).json({
-                error: 'File is required'
-            });
+            return res.status(400).json({ error: 'File is required' });
         }
 
         const csvPath = req.file.path;
         const students = [];
 
-        // Parse CSV file
         fs.createReadStream(csvPath)
             .pipe(csv())
             .on('data', (row) => {
-                // Validate required fields - only essential data needed
                 if (row.name) {
-                    students.push({
-                        name: row.name.trim(),
-                        student_id: row.student_id?.trim() || row.id?.trim() || `STU${Date.now()}`,
-                        email: row.email?.trim() || 'student@example.com',
-                        course: row.course?.trim() || row.program?.trim() || row.department?.trim() || 'General Course',
-                        grade: row.grade?.trim() || 'Merit - First Class',
-                        percentage: row.percentage?.trim() || '85.0%'
-                    });
+                    students.push(row);
                 }
             })
             .on('end', () => {
-                // Clean up uploaded file
                 fs.unlinkSync(csvPath);
-
-                if (students.length === 0) {
-                    return res.status(400).json({
-                        error: 'No valid student data found in CSV'
-                    });
-                }
-
-                res.json({
+                res.status(200).json({
                     success: true,
-                    message: `Successfully parsed ${students.length} student records`,
-                    certificates: students
+                    data: students
                 });
             })
-            .on('error', (error) => {
-                // Clean up uploaded file on error
-                if (fs.existsSync(csvPath)) {
-                    fs.unlinkSync(csvPath);
-                }
-                console.error('CSV parsing error:', error);
-                res.status(500).json({
-                    error: 'CSV Parsing Failed',
-                    message: error.message
-                });
+            .on('error', (err) => {
+                res.status(500).json({ error: 'Parse Failed', message: err.message });
             });
 
     } catch (error) {
-        console.error('File parsing error:', error);
-        res.status(500).json({
-            error: 'File Processing Failed',
-            message: error.message
-        });
-    }
-});
-
-/**
- * @route POST /api/certificates/generate
- * @desc Generate ZK proofs and Merkle tree for certificates
- */
-router.post('/generate', async (req, res) => {
-    try {
-        const { certificates } = req.body;
-
-        if (!certificates || !Array.isArray(certificates)) {
-            return res.status(400).json({
-                error: 'Certificates array is required'
-            });
+        if (req.file && fs.existsSync(req.file.path)) {
+            fs.unlinkSync(req.file.path);
         }
-
-        // Generate certificate commitments
-        const certificateCommitments = certificates.map(cert =>
-            CertificateService.generateCertificateCommitment(cert)
-        );
-
-        // Build Merkle tree
-        const merkleTree = MerkleService.buildMerkleTree(certificateCommitments);
-        const merkleRoot = merkleTree.getHexRoot();
-
-        // Generate real ZK proofs for privacy-preserving verification
-        const zkProofs = await Promise.all(
-            certificates.map(async (cert, index) => {
-                try {
-                    // Extract student data for ZK proof
-                    const studentId = parseInt(cert.studentId || Math.random() * 1000000);
-                    const subjects = [
-                        cert.math || 0,
-                        cert.science || 0,
-                        cert.english || 0,
-                        cert.history || 0,
-                        cert.art || 0
-                    ];
-                    
-                    const zkInput = {
-                        studentId: studentId,
-                        subjects: subjects,
-                        salt: Math.random().toString(36).substr(2, 16),
-                        minPassingGrade: 60,
-                        requireAllPassed: false
-                    };
-                    
-                    const proofData = await ZKProofService.generateProof(zkInput);
-                    
-                    return {
-                        certificateId: `CERT_${Date.now()}_${index}`,
-                        proof: proofData.proof,
-                        publicSignals: proofData.publicSignals,
-                        commitment: proofData.commitment,
-                        isValid: true
-                    };
-                } catch (error) {
-                    console.warn(`ZK proof generation failed for certificate ${index}:`, error.message);
-                    // Fallback to commitment-only approach for privacy
-                    return {
-                        certificateId: `CERT_${Date.now()}_${index}`,
-                        commitment: certificateCommitments[index].hash,
-                        isValid: false,
-                        error: 'ZK proof generation failed'
-                    };
-                }
-            })
-        );
-
-        res.json({
-            success: true,
-            merkleRoot: merkleRoot,
-            certificates: certificateCommitments,
-            zkProofs: zkProofs,
-            totalCertificates: certificates.length
-        });
-
-    } catch (error) {
-        console.error('Certificate generation error:', error);
-        res.status(500).json({
-            error: 'Certificate Generation Failed',
-            message: error.message
-        });
+        console.error('Parse error:', error);
+        res.status(500).json({ error: 'Parse Failed', message: error.message });
     }
 });
 
 /**
- * @route POST /api/certificates/deploy
- * @desc Deploy certificates to blockchain
- */
-router.post('/deploy', async (req, res) => {
-    try {
-        const { merkleRoot, certificates } = req.body;
-
-        if (!merkleRoot) {
-            return res.status(400).json({
-                error: 'Merkle root is required'
-            });
-        }
-
-        // Simulate blockchain deployment
-        // In real implementation, this would use ethers.js to deploy to blockchain
-        const transactionHash = `0x${Math.random().toString(16).substr(2, 64)}`;
-        const blockNumber = Math.floor(Math.random() * 1000000) + 18500000;
-        const gasUsed = Math.floor(Math.random() * 100000) + 21000;
-
-        // Save deployment info (in real implementation, save to database)
-        const deploymentInfo = {
-            merkleRoot: merkleRoot,
-            transactionHash: transactionHash,
-            blockNumber: blockNumber,
-            gasUsed: gasUsed,
-            timestamp: new Date().toISOString(),
-            certificateCount: certificates?.length || 0
-        };
-
-        console.log('Mock deployment successful:', deploymentInfo);
-
-        res.json({
-            success: true,
-            message: 'Certificates deployed to blockchain successfully',
-            transactionHash: transactionHash,
-            blockNumber: blockNumber,
-            gasUsed: gasUsed,
-            merkleRoot: merkleRoot
-        });
-
-    } catch (error) {
-        console.error('Blockchain deployment error:', error);
-        res.status(500).json({
-            error: 'Blockchain Deployment Failed',
-            message: error.message
-        });
-    }
-});
-
-/**
- * @route POST /api/certificates/pdf
- * @desc Generate PDF certificate
+ * @route POST /api/certificates/legacy/pdf
  */
 router.post('/pdf', async (req, res) => {
     try {
@@ -425,10 +234,7 @@ router.post('/pdf', async (req, res) => {
 
         const { error, value } = pdfSchema.validate(req.body);
         if (error) {
-            return res.status(400).json({
-                error: 'Validation Error',
-                details: error.details
-            });
+            return res.status(400).json({ error: 'Validation Error', details: error.details });
         }
 
         const pdfBuffer = await CertificateService.generatePDFCertificate(value);
@@ -442,9 +248,193 @@ router.post('/pdf', async (req, res) => {
 
     } catch (error) {
         console.error('PDF generation error:', error);
-        res.status(500).json({
-            error: 'PDF Generation Failed',
-            message: error.message
+        res.status(500).json({ error: 'PDF Generation Failed', message: error.message });
+    }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GET /api/certificates/legacy/retrieve?query=S2026001&type=studentId
+//
+// NOTE: This is mounted at /api/certificates/legacy in server.js.
+// The frontend calls /api/certificates/retrieve — so server.js also needs
+// a SECOND mount. See the server.js fix below.
+// ─────────────────────────────────────────────────────────────────────────────
+
+const RETRIEVE_LABELS = {
+    studentId:        'Student ID',
+    certId:           'Certificate ID',
+    blockHash:        'Block Hash',
+    txHash:           'Transaction Hash',
+    merkleRoot:       'Merkle Root',
+    email:            'Email',
+    verificationCode: 'Verification Code',
+};
+
+router.get('/retrieve', async (req, res) => {
+    const { query, type = 'studentId' } = req.query;
+    const q = (query || '').trim();
+
+    if (!q) {
+        return res.status(400).json({ success: false, message: 'query parameter is required' });
+    }
+
+    const connected = await connectDatabase();
+    if (!connected || !isDatabaseConnected()) {
+        return res.status(503).json({
+            success: false,
+            message: 'Database not connected. Check MONGODB_URI in your backend .env file.',
+        });
+    }
+
+    try {
+        let certificates = [];
+
+        switch (type) {
+
+            case 'studentId':
+                certificates = await Certificate.find({
+                    $or: [
+                        { studentId:           { $regex: q, $options: 'i' } },
+                        { 'content.studentId': { $regex: q, $options: 'i' } },
+                    ],
+                }).populate('deploymentId').sort({ createdAt: -1 }).lean();
+                break;
+
+            case 'certId':
+                certificates = await Certificate.find({
+                    certificateId: { $regex: q, $options: 'i' },
+                }).populate('deploymentId').sort({ createdAt: -1 }).lean();
+                break;
+
+            case 'blockHash': {
+                const deps = await DeploymentRecord.find({
+                    blockHash: { $regex: q, $options: 'i' },
+                }).lean();
+                if (deps.length) {
+                    certificates = await Certificate.find({
+                        deploymentId: { $in: deps.map(d => d._id) },
+                    }).populate('deploymentId').sort({ createdAt: -1 }).lean();
+                }
+                break;
+            }
+
+            case 'txHash':
+                certificates = await Certificate.find({
+                    transactionHash: { $regex: q, $options: 'i' },
+                }).populate('deploymentId').sort({ createdAt: -1 }).lean();
+
+                if (!certificates.length) {
+                    const deps = await DeploymentRecord.find({
+                        transactionHash: { $regex: q, $options: 'i' },
+                    }).lean();
+                    if (deps.length) {
+                        certificates = await Certificate.find({
+                            deploymentId: { $in: deps.map(d => d._id) },
+                        }).populate('deploymentId').sort({ createdAt: -1 }).lean();
+                    }
+                }
+                break;
+
+            case 'merkleRoot':
+                certificates = await Certificate.find({
+                    merkleRoot: { $regex: q, $options: 'i' },
+                }).populate('deploymentId').sort({ createdAt: -1 }).lean();
+
+                if (!certificates.length) {
+                    const deps = await DeploymentRecord.find({
+                        merkleRoot: { $regex: q, $options: 'i' },
+                    }).lean();
+                    if (deps.length) {
+                        certificates = await Certificate.find({
+                            deploymentId: { $in: deps.map(d => d._id) },
+                        }).populate('deploymentId').sort({ createdAt: -1 }).lean();
+                    }
+                }
+                break;
+
+            case 'email':
+                certificates = await Certificate.find({
+                    $or: [
+                        { email:                  { $regex: q, $options: 'i' } },
+                        { 'content.studentEmail': { $regex: q, $options: 'i' } },
+                    ],
+                }).populate('deploymentId').sort({ createdAt: -1 }).lean();
+                break;
+
+            case 'verificationCode':
+                certificates = await Certificate.find({
+                    verificationCode: { $regex: q, $options: 'i' },
+                }).populate('deploymentId').sort({ createdAt: -1 }).lean();
+                break;
+
+            default:
+                return res.status(400).json({ success: false, message: `Unknown type: ${type}` });
+        }
+
+        if (!certificates.length) {
+            return res.status(404).json({
+                success: false,
+                message: `No certificates found for ${RETRIEVE_LABELS[type] || type}: "${q}"`,
+            });
+        }
+
+        const dep = certificates[0]?.deploymentId || {};
+        const deploymentInfo = {
+            networkSelection:  dep.networkSelection,
+            networkDisplay:    dep.networkDisplay,
+            networkName:       dep.networkName,
+            chainId:           dep.chainId,
+            layerType:         dep.layerType,
+            isLayer2:          dep.isLayer2,
+            rpcUrl:            dep.rpcUrl,
+            contractAddress:   dep.contractAddress  || certificates[0]?.contractAddress,
+            transactionHash:   dep.transactionHash  || certificates[0]?.transactionHash,
+            blockNumber:       dep.blockNumber      || certificates[0]?.blockNumber,
+            blockHash:         dep.blockHash,
+            gasUsed:           dep.gasUsed,
+            merkleRoot:        dep.merkleRoot       || certificates[0]?.merkleRoot,
+            totalCertificates: dep.totalCertificates,
+            deployedAt:        dep.deployedAt,
+            metadata:          dep.metadata,
+        };
+
+        const shapedCerts = certificates.map(c => ({
+            certificateId:    c.certificateId,
+            name:             c.name,
+            email:            c.email,
+            studentId:        c.studentId || c.content?.studentId,
+            issueDate:        c.issueDate,
+            verificationCode: c.verificationCode,
+            status:           c.status,
+            transactionHash:  c.transactionHash,
+            blockNumber:      c.blockNumber,
+            contractAddress:  c.contractAddress,
+            merkleRoot:       c.merkleRoot,
+            merkleProof:      c.merkleProof,
+            leafHash:         c.leafHash,
+            zkProof:          c.zkProof,
+            zkProofVerified:  c.zkProofVerified,
+            content:          c.content,
+            deployedAt:       c.deployedAt,
+            createdAt:        c.createdAt,
+        }));
+
+        return res.status(200).json({
+            success: true,
+            data: {
+                ...deploymentInfo,
+                certificates:      shapedCerts,
+                totalCertificates: certificates.length,
+                queryType:         type,
+                searchQuery:       q,
+            },
+        });
+
+    } catch (err) {
+        console.error('Certificate retrieve error:', err);
+        return res.status(500).json({
+            success: false,
+            message: `Server error: ${err.message}`,
         });
     }
 });

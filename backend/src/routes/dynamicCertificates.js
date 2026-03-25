@@ -9,6 +9,12 @@ const XLSX = require('xlsx');
 
 const DynamicCertificateService = require('../services/DynamicCertificateService');
 
+// ── ADD: models + DB for /retrieve ───────────────────────────────────────────
+const Certificate      = require('../models/Certificate');
+const DeploymentRecord = require('../models/DeploymentRecord');
+const { connectDatabase, isDatabaseConnected } = require('../config/database');
+// ─────────────────────────────────────────────────────────────────────────────
+
 const router = express.Router();
 
 // Configure multer for file uploads with better organization
@@ -29,7 +35,7 @@ const storage = multer.diskStorage({
 const upload = multer({
     storage: storage,
     limits: {
-        fileSize: 25 * 1024 * 1024, // 25MB limit for larger Excel files
+        fileSize: 25 * 1024 * 1024,
     },
     fileFilter: (req, file, cb) => {
         const allowedTypes = [
@@ -38,7 +44,6 @@ const upload = multer({
             'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
             'application/csv'
         ];
-
         const allowedExtensions = ['.csv', '.xlsx', '.xls'];
         const fileExtension = path.extname(file.originalname).toLowerCase();
 
@@ -50,9 +55,199 @@ const upload = multer({
     }
 });
 
+// ─────────────────────────────────────────────────────────────────────────────
+// GET /api/certificates/retrieve
+// Query MongoDB for certificates by studentId, certId, blockHash, txHash,
+// merkleRoot, email, or verificationCode.
+//
+// Usage: GET /api/certificates/retrieve?query=S2026001&type=studentId
+// ─────────────────────────────────────────────────────────────────────────────
+
+const RETRIEVE_LABELS = {
+    studentId:        'Student ID',
+    certId:           'Certificate ID',
+    blockHash:        'Block Hash',
+    txHash:           'Transaction Hash',
+    merkleRoot:       'Merkle Root',
+    email:            'Email',
+    verificationCode: 'Verification Code',
+};
+
+router.get('/retrieve', async (req, res) => {
+    const { query, type = 'studentId' } = req.query;
+    const q = (query || '').trim();
+
+    if (!q) {
+        return res.status(400).json({ success: false, message: 'query parameter is required' });
+    }
+
+    const connected = await connectDatabase();
+    if (!connected || !isDatabaseConnected()) {
+        return res.status(503).json({
+            success: false,
+            message: 'Database not connected. Check MONGODB_URI in your backend .env file.',
+        });
+    }
+
+    try {
+        let certificates = [];
+
+        switch (type) {
+
+            case 'studentId':
+                certificates = await Certificate.find({
+                    $or: [
+                        { studentId:           { $regex: q, $options: 'i' } },
+                        { 'content.studentId': { $regex: q, $options: 'i' } },
+                    ],
+                }).populate('deploymentId').sort({ createdAt: -1 }).lean();
+                break;
+
+            case 'certId':
+                certificates = await Certificate.find({
+                    certificateId: { $regex: q, $options: 'i' },
+                }).populate('deploymentId').sort({ createdAt: -1 }).lean();
+                break;
+
+            case 'blockHash': {
+                const deps = await DeploymentRecord.find({
+                    blockHash: { $regex: q, $options: 'i' },
+                }).lean();
+                if (deps.length) {
+                    certificates = await Certificate.find({
+                        deploymentId: { $in: deps.map(d => d._id) },
+                    }).populate('deploymentId').sort({ createdAt: -1 }).lean();
+                }
+                break;
+            }
+
+            case 'txHash':
+                certificates = await Certificate.find({
+                    transactionHash: { $regex: q, $options: 'i' },
+                }).populate('deploymentId').sort({ createdAt: -1 }).lean();
+
+                if (!certificates.length) {
+                    const deps = await DeploymentRecord.find({
+                        transactionHash: { $regex: q, $options: 'i' },
+                    }).lean();
+                    if (deps.length) {
+                        certificates = await Certificate.find({
+                            deploymentId: { $in: deps.map(d => d._id) },
+                        }).populate('deploymentId').sort({ createdAt: -1 }).lean();
+                    }
+                }
+                break;
+
+            case 'merkleRoot':
+                certificates = await Certificate.find({
+                    merkleRoot: { $regex: q, $options: 'i' },
+                }).populate('deploymentId').sort({ createdAt: -1 }).lean();
+
+                if (!certificates.length) {
+                    const deps = await DeploymentRecord.find({
+                        merkleRoot: { $regex: q, $options: 'i' },
+                    }).lean();
+                    if (deps.length) {
+                        certificates = await Certificate.find({
+                            deploymentId: { $in: deps.map(d => d._id) },
+                        }).populate('deploymentId').sort({ createdAt: -1 }).lean();
+                    }
+                }
+                break;
+
+            case 'email':
+                certificates = await Certificate.find({
+                    $or: [
+                        { email:                  { $regex: q, $options: 'i' } },
+                        { 'content.studentEmail': { $regex: q, $options: 'i' } },
+                    ],
+                }).populate('deploymentId').sort({ createdAt: -1 }).lean();
+                break;
+
+            case 'verificationCode':
+                certificates = await Certificate.find({
+                    verificationCode: { $regex: q, $options: 'i' },
+                }).populate('deploymentId').sort({ createdAt: -1 }).lean();
+                break;
+
+            default:
+                return res.status(400).json({ success: false, message: `Unknown type: ${type}` });
+        }
+
+        if (!certificates.length) {
+            return res.status(404).json({
+                success: false,
+                message: `No certificates found for ${RETRIEVE_LABELS[type] || type}: "${q}"`,
+            });
+        }
+
+        const dep = certificates[0]?.deploymentId || {};
+        const deploymentInfo = {
+            networkSelection:  dep.networkSelection,
+            networkDisplay:    dep.networkDisplay,
+            networkName:       dep.networkName,
+            chainId:           dep.chainId,
+            layerType:         dep.layerType,
+            isLayer2:          dep.isLayer2,
+            rpcUrl:            dep.rpcUrl,
+            contractAddress:   dep.contractAddress  || certificates[0]?.contractAddress,
+            transactionHash:   dep.transactionHash  || certificates[0]?.transactionHash,
+            blockNumber:       dep.blockNumber      || certificates[0]?.blockNumber,
+            blockHash:         dep.blockHash,
+            gasUsed:           dep.gasUsed,
+            merkleRoot:        dep.merkleRoot       || certificates[0]?.merkleRoot,
+            totalCertificates: dep.totalCertificates,
+            deployedAt:        dep.deployedAt,
+            metadata:          dep.metadata,
+        };
+
+        const shapedCerts = certificates.map(c => ({
+            certificateId:    c.certificateId,
+            name:             c.name,
+            email:            c.email,
+            studentId:        c.studentId || c.content?.studentId,
+            issueDate:        c.issueDate,
+            verificationCode: c.verificationCode,
+            status:           c.status,
+            transactionHash:  c.transactionHash,
+            blockNumber:      c.blockNumber,
+            contractAddress:  c.contractAddress,
+            merkleRoot:       c.merkleRoot,
+            merkleProof:      c.merkleProof,
+            leafHash:         c.leafHash,
+            zkProof:          c.zkProof,
+            zkProofVerified:  c.zkProofVerified,
+            content:          c.content,
+            deployedAt:       c.deployedAt,
+            createdAt:        c.createdAt,
+        }));
+
+        return res.status(200).json({
+            success: true,
+            data: {
+                ...deploymentInfo,
+                certificates:      shapedCerts,
+                totalCertificates: certificates.length,
+                queryType:         type,
+                searchQuery:       q,
+            },
+        });
+
+    } catch (err) {
+        console.error('Certificate retrieve error:', err);
+        return res.status(500).json({
+            success: false,
+            message: `Server error: ${err.message}`,
+        });
+    }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ALL EXISTING ROUTES BELOW — unchanged
+// ─────────────────────────────────────────────────────────────────────────────
+
 /**
  * @route POST /api/certificates/parse
- * @desc Analyze uploaded file and return structure information
  */
 router.post('/parse', upload.single('file'), async (req, res) => {
     try {
@@ -64,20 +259,17 @@ router.post('/parse', upload.single('file'), async (req, res) => {
             });
         }
 
-        // Analyze file structure
         const analysis = await DynamicCertificateService.analyzeFileStructure(req.file.path);
 
-        // Generate session ID for this upload
         const sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
-        // Store file info temporarily (in production, use Redis or database)
         global.uploadSessions = global.uploadSessions || {};
         global.uploadSessions[sessionId] = {
             filePath: req.file.path,
             originalName: req.file.originalname,
             analysis: analysis,
             createdAt: new Date(),
-            expiresAt: new Date(Date.now() + 30 * 60 * 1000) // 30 minutes
+            expiresAt: new Date(Date.now() + 30 * 60 * 1000)
         };
 
         res.json({
@@ -89,11 +281,9 @@ router.post('/parse', upload.single('file'), async (req, res) => {
         });
 
     } catch (error) {
-        // Clean up file on error
         if (req.file && fs.existsSync(req.file.path)) {
             fs.unlinkSync(req.file.path);
         }
-
         console.error('File parsing error:', error);
         res.status(500).json({
             success: false,
@@ -105,7 +295,6 @@ router.post('/parse', upload.single('file'), async (req, res) => {
 
 /**
  * @route POST /api/certificates/generate
- * @desc Process data with user-defined mappings and generate certificates
  */
 router.post('/generate', async (req, res) => {
     try {
@@ -138,7 +327,6 @@ router.post('/generate', async (req, res) => {
 
         const { sessionId, fieldMappings, certificateTemplate, processingOptions } = value;
 
-        // Retrieve session data
         const session = global.uploadSessions?.[sessionId];
         if (!session) {
             return res.status(404).json({
@@ -148,7 +336,6 @@ router.post('/generate', async (req, res) => {
             });
         }
 
-        // Check if session expired
         if (new Date() > session.expiresAt) {
             delete global.uploadSessions[sessionId];
             if (fs.existsSync(session.filePath)) {
@@ -161,7 +348,6 @@ router.post('/generate', async (req, res) => {
             });
         }
 
-        // Re-parse file with processing
         let rawData = [];
         const fileExtension = path.extname(session.filePath).toLowerCase();
 
@@ -180,7 +366,6 @@ router.post('/generate', async (req, res) => {
             rawData = XLSX.utils.sheet_to_json(worksheet);
         }
 
-        // Process data with user mappings
         const processingResult = DynamicCertificateService.processStudentData(
             rawData,
             fieldMappings,
@@ -195,7 +380,6 @@ router.post('/generate', async (req, res) => {
             });
         }
 
-        // Generate certificate metadata for each student
         const certificates = processingResult.processedData.map(student => ({
             ...student,
             certificateId: student.certificateId,
@@ -205,7 +389,6 @@ router.post('/generate', async (req, res) => {
             status: 'ready'
         }));
 
-        // Clean up file
         if (fs.existsSync(session.filePath)) {
             fs.unlinkSync(session.filePath);
         }
@@ -231,7 +414,6 @@ router.post('/generate', async (req, res) => {
 
 /**
  * @route POST /api/certificates/download-pdf
- * @desc Generate and download PDF certificate for a student
  */
 router.post('/download-pdf', async (req, res) => {
     try {
@@ -251,7 +433,6 @@ router.post('/download-pdf', async (req, res) => {
 
         const { studentData, template } = value;
 
-        // Generate PDF using dynamic service
         const pdfBuffer = await DynamicCertificateService.generateDynamicPDFCertificate(
             studentData,
             template || {}
@@ -279,7 +460,6 @@ router.post('/download-pdf', async (req, res) => {
 
 /**
  * @route POST /api/certificates/bulk-download
- * @desc Generate and download multiple PDF certificates as a ZIP
  */
 router.post('/bulk-download', async (req, res) => {
     try {
@@ -300,10 +480,7 @@ router.post('/bulk-download', async (req, res) => {
         const { certificates, template } = value;
 
         if (certificates.length === 0) {
-            return res.status(400).json({
-                success: false,
-                error: 'No certificates provided'
-            });
+            return res.status(400).json({ success: false, error: 'No certificates provided' });
         }
 
         const zip = new JSZip();
@@ -317,9 +494,8 @@ router.post('/bulk-download', async (req, res) => {
             const safeName = (cert.name || cert.studentName || cert.certificateId || 'certificate')
                 .toString()
                 .replace(/[^a-zA-Z0-9]/g, '_');
-            const fileName = `${safeName}_certificate.pdf`;
 
-            zip.file(fileName, pdfBuffer);
+            zip.file(`${safeName}_certificate.pdf`, pdfBuffer);
         }
 
         const zipBuffer = await zip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE' });
@@ -345,72 +521,49 @@ router.post('/bulk-download', async (req, res) => {
 
 /**
  * @route GET /api/certificates/templates
- * @desc Get available certificate templates
  */
 router.get('/templates', (req, res) => {
     try {
         const templates = {
             standard: {
                 title: 'CERTIFICATE OF COMPLETION',
-                colors: {
-                    primary: '#2c3e50',
-                    secondary: '#3498db',
-                    accent: '#e74c3c',
-                    text: '#34495e'
-                },
+                colors: { primary: '#2c3e50', secondary: '#3498db', accent: '#e74c3c', text: '#34495e' },
                 fonts: {
-                    title: { size: 24, family: 'Helvetica-Bold' },
+                    title:   { size: 24, family: 'Helvetica-Bold' },
                     heading: { size: 18, family: 'Helvetica' },
-                    body: { size: 14, family: 'Helvetica' }
+                    body:    { size: 14, family: 'Helvetica' }
                 }
             },
             academic: {
                 title: 'ACADEMIC ACHIEVEMENT CERTIFICATE',
-                colors: {
-                    primary: '#1a365d',
-                    secondary: '#2d3748',
-                    accent: '#319795',
-                    text: '#4a5568'
-                },
+                colors: { primary: '#1a365d', secondary: '#2d3748', accent: '#319795', text: '#4a5568' },
                 fonts: {
-                    title: { size: 26, family: 'Helvetica-Bold' },
+                    title:   { size: 26, family: 'Helvetica-Bold' },
                     heading: { size: 20, family: 'Helvetica' },
-                    body: { size: 16, family: 'Helvetica' }
+                    body:    { size: 16, family: 'Helvetica' }
                 }
             },
             professional: {
                 title: 'PROFESSIONAL CERTIFICATION',
-                colors: {
-                    primary: '#1a202c',
-                    secondary: '#2d3748',
-                    accent: '#805ad5',
-                    text: '#4a5568'
-                },
+                colors: { primary: '#1a202c', secondary: '#2d3748', accent: '#805ad5', text: '#4a5568' },
                 fonts: {
-                    title: { size: 22, family: 'Helvetica-Bold' },
+                    title:   { size: 22, family: 'Helvetica-Bold' },
                     heading: { size: 16, family: 'Helvetica' },
-                    body: { size: 12, family: 'Helvetica' }
+                    body:    { size: 12, family: 'Helvetica' }
                 }
             }
         };
 
-        res.json({
-            success: true,
-            templates: templates
-        });
+        res.json({ success: true, templates });
 
     } catch (error) {
         console.error('Templates error:', error);
-        res.status(500).json({
-            success: false,
-            error: 'Failed to load templates'
-        });
+        res.status(500).json({ success: false, error: 'Failed to load templates' });
     }
 });
 
 /**
  * @route DELETE /api/certificates/cleanup/:sessionId
- * @desc Clean up temporary files and session data
  */
 router.delete('/cleanup/:sessionId', (req, res) => {
     try {
@@ -418,26 +571,17 @@ router.delete('/cleanup/:sessionId', (req, res) => {
         const session = global.uploadSessions?.[sessionId];
 
         if (session) {
-            // Clean up file
             if (fs.existsSync(session.filePath)) {
                 fs.unlinkSync(session.filePath);
             }
-
-            // Remove session
             delete global.uploadSessions[sessionId];
         }
 
-        res.json({
-            success: true,
-            message: 'Session cleaned up successfully'
-        });
+        res.json({ success: true, message: 'Session cleaned up successfully' });
 
     } catch (error) {
         console.error('Cleanup error:', error);
-        res.status(500).json({
-            success: false,
-            error: 'Cleanup failed'
-        });
+        res.status(500).json({ success: false, error: 'Cleanup failed' });
     }
 });
 
@@ -454,6 +598,6 @@ setInterval(() => {
             }
         });
     }
-}, 10 * 60 * 1000); // Run every 10 minutes
+}, 10 * 60 * 1000);
 
 module.exports = router;

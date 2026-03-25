@@ -217,7 +217,6 @@ class CertificateService {
                     align: 'center'
                 });
 
-                // Footer
                 doc.fontSize(10).fillColor('#95a5a6').text(
                     'This certificate is secured using Zero-Knowledge Proofs and Blockchain Technology',
                     50,
@@ -235,8 +234,8 @@ class CertificateService {
 
     /**
      * Generate verification QR code data
-     * @param {Object} verificationData - Data for QR code
-     * @returns {string} - JSON string for QR code
+     * @param {Object} verificationData 
+     * @returns {string} 
      */
     static generateQRCodeData(verificationData) {
         return JSON.stringify({

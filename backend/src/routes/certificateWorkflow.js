@@ -294,7 +294,10 @@ router.post('/process', async (req, res) => {
                 email: student.email || '',
                 course: student.course || '',
                 grade: student.grade || '',
-                studentId: student.student_id || student.id,
+                // Use snake_case key to match the fallback builder in the deploy
+                // step — both paths must produce identical JSON for the same student
+                // so that finalCommitment hashes are consistent.
+                student_id: student.student_id || student.id,
                 sessionId: sessionId,
                 createdAt: new Date().toISOString()
             };
@@ -570,6 +573,7 @@ router.post('/deploy', async (req, res) => {
         // PHASE 2: Now that we have transaction details, create final certificate commitments
         let finalCertificates = [];
         let certificatesForProcessing = null;
+        let finalMerkleRoot = merkleRoot; // will be overwritten after finalMerkleTree is built
         
         // Try to get certificates from multiple sources
         console.log(`\n === CERTIFICATE RETRIEVAL DEBUG ===`);
@@ -799,34 +803,33 @@ router.post('/deploy', async (req, res) => {
             });
 
             // Build FINAL Merkle tree with transaction details included
-            try {
-                const finalMerkleTree = MerkleService.buildMerkleTree(finalCertificates, 'finalCommitment');
-                const finalMerkleRoot = '0x' + finalMerkleTree.getRoot().toString('hex');
-                
-                // Generate final proofs
-                const finalCertificatesWithProofs = finalCertificates.map(cert => {
-                    const finalProof = MerkleService.generateMerkleProof(finalMerkleTree, cert.finalCommitment);
-                    return {
-                        ...cert,
-                        finalMerkleProof: finalProof
-                    };
-                });
+            // NOTE: This block must NOT silently swallow errors — if it fails,
+            // finalCertificates will have no finalMerkleProof and every cert
+            // will show "Merkle Failed" in the UI.  All errors are re-thrown.
+            const finalMerkleTree = MerkleService.buildMerkleTree(finalCertificates, 'finalCommitment');
+            finalMerkleRoot = '0x' + finalMerkleTree.getRoot().toString('hex');
 
-                console.log(` Final Merkle root (with tx details): ${finalMerkleRoot}`);
+            // Generate final Merkle proof for every certificate
+            const finalCertificatesWithProofs = finalCertificates.map(cert => {
+                const finalProof = MerkleService.generateMerkleProof(finalMerkleTree, cert.finalCommitment);
+                return { ...cert, finalMerkleProof: finalProof };
+            });
 
-                // Update session with final data
+            console.log(` Final Merkle root (with tx details): ${finalMerkleRoot}`);
+            console.log(`   Proofs generated for ${finalCertificatesWithProofs.length} certificates`);
+            console.log(`   Sample cert has finalMerkleProof: ${!!finalCertificatesWithProofs[0]?.finalMerkleProof}`);
+
+            // Persist to session if one is available (safe guard — session may
+            // not exist if the server restarted between process and deploy steps)
+            if (sessionId && global.certificateWorkflowSessions?.[sessionId]) {
                 global.certificateWorkflowSessions[sessionId].finalCertificates = finalCertificatesWithProofs;
                 global.certificateWorkflowSessions[sessionId].finalMerkleRoot = finalMerkleRoot;
-                
-                //  CRITICAL: Update the finalCertificates variable that will be used for MongoDB save
-                finalCertificates = finalCertificatesWithProofs;
-                
-                console.log(`finalCertificates updated with proofs: ${finalCertificates.length} certificates`);
-                console.log(`   First cert has finalMerkleProof: ${!!finalCertificates[0].finalMerkleProof}`);
-                console.log(`   Sample: name=${finalCertificates[0].name}, email=${finalCertificates[0].email}`);
-            } catch (finalMerkleError) {
-                console.warn('Failed to build final Merkle tree:', finalMerkleError);
+            } else {
+                console.warn(`Session ${sessionId} not found in memory — skipping session update (safe to ignore if certs come from request body)`);
             }
+
+            // CRITICAL: always update the local variable used for MongoDB save
+            finalCertificates = finalCertificatesWithProofs;
         } else {
             console.error(`\n EARLY EXIT: certificatesForProcessing is empty or null!`);
             console.error(`   finalCertificates will remain empty: ${Array.isArray(finalCertificates) ? finalCertificates.length : 'not-array'}`);
@@ -914,6 +917,10 @@ router.post('/deploy', async (req, res) => {
                 blockHash: receipt.blockHash,
                 gasUsed: receipt.gasUsed.toString(),
                 merkleRoot,
+                // finalMerkleRoot is built after tx details are included —
+                // it is the root that the stored proofs verify against.
+                // finalMerkleRoot is computed after the blockchain tx, includes tx details.
+                finalMerkleRoot: finalMerkleRoot,
                 totalCertificates,
                 metadata: metadata || {},
                 deployedAt: new Date(block.timestamp * 1000)
@@ -921,12 +928,12 @@ router.post('/deploy', async (req, res) => {
 
             // Save individual certificates to MongoDB
             if (finalCertificates && finalCertificates.length > 0) {
-                console.log(`\n📝 Saving ${finalCertificates.length} certificates to MongoDB...`);
+                console.log(`\n Saving ${finalCertificates.length} certificates to MongoDB...`);
                 
                 // Map zkProofs by studentId for quick lookup
                 const zkProofMap = {};
                 if (zkProofs && Array.isArray(zkProofs)) {
-                    console.log(`\n   🔍 Processing zkProofs array...`);
+                    console.log(`\n    Processing zkProofs array...`);
                     zkProofs.forEach((proof, idx) => {
                         console.log(`      zkProofs[${idx}] keys:`, Object.keys(proof));
                         console.log(`      zkProofs[${idx}].studentId:`, proof.studentId);
@@ -945,93 +952,98 @@ router.post('/deploy', async (req, res) => {
                 }
                 
                 const certificatesToSave = finalCertificates.map((cert, idx) => {
-                    // Try to match this certificate with its zkProof
-                    const studentId = cert.student_id || cert.studentId || `STU${idx}`;
-                    
-                    // Try multiple matching strategies
-                    let matchedZKProof = null;
-                    
-                    // Strategy 1: Exact ID match
-                    matchedZKProof = zkProofMap[studentId];
-                    
-                    // Strategy 2: Try by index position (fallback if zkProofs array order matches certificates)
-                    if (!matchedZKProof && zkProofs && zkProofs[idx]) {
-                        const zkProofAtIndex = zkProofs[idx];
-                        if (zkProofAtIndex.status === 'success') {
-                            matchedZKProof = zkProofAtIndex;
-                            if (idx < 3) {
-                                console.log(`   Cert ${idx + 1}: No ID match, using position-based match (index ${idx})`);
-                            }
-                        }
+
+                    // Robustly resolve studentId from all possible fields
+                    let realStudentId =
+                        cert.studentId ||
+                        cert.student_id ||
+                        cert.preCommitmentData?.studentId ||
+                        cert.preCommitmentData?.student_id ||
+                        cert.finalCommitmentData?.studentId ||
+                        cert.finalCommitmentData?.student_id ||
+                        cert['Student ID'] ||
+                        cert['STUDENT ID'] ||
+                        cert['student id'] ||
+                        cert['Roll No'] ||
+                        cert['Roll_No'] ||
+                        cert['ID'];
+
+                    // If still not found, try to extract from raw data
+                    if (!realStudentId && cert.raw) {
+                        realStudentId = cert.raw['Student ID'] || cert.raw['student_id'] || cert.raw['studentId'] || cert.raw['ID'] || cert.raw['Roll No'] || cert.raw['Roll_No'];
                     }
-                    
-                    // Log which studentId we're looking up and if we found a match
-                    if (idx < 3) {  // Log first 3 certificates for debugging
-                        console.log(`   Cert ${idx + 1}: Looking for studentId="${studentId}" in zkProofMap - ${matchedZKProof ? '✓ FOUND' : '✗ NOT FOUND'}`);
+
+                    if (!realStudentId) {
+                        console.error(`❌ Certificate ${idx + 1}: No real student_id found! Certificate will not be saved. Cert object:`, cert);
+                        return null; // Skip this certificate
                     }
-                    
-                    // Use the matched proof if available and successful, otherwise use cert's proof
+
+                    let matchedZKProof = zkProofMap[realStudentId];
+                    if (!matchedZKProof) {
+                        console.error(`❌ Certificate ${idx + 1}: No matching zkProof found for student_id="${realStudentId}". Certificate will not be saved.`);
+                        return null; // Skip this certificate
+                    }
+
+                    // Use the matched proof if available and successful, otherwise log error
                     let zkProofData = cert.zkProof || { verified: false, pA: [], pB: [], pC: [], publicSignals: [] };
                     let isZKVerified = false;
-                    
-                    if (matchedZKProof && matchedZKProof.status === 'success') {
-                        if (matchedZKProof.zkProof) {
-                            // Transform proof structure: pi_a/pi_b/pi_c → pA/pB/pC for MongoDB storage
-                            const proofData = matchedZKProof.zkProof;
-                            if (proofData.proof) {
-                                // This is from the API response with { proof: {pi_a, pi_b, pi_c}, publicSignals, commitment }
-                                zkProofData = {
-                                    pA: proofData.proof.pi_a || proofData.proof.a || [],
-                                    pB: proofData.proof.pi_b || proofData.proof.b || [],
-                                    pC: proofData.proof.pi_c || proofData.proof.c || [],
-                                    publicSignals: proofData.publicSignals || [],
-                                    commitment: proofData.commitment,
-                                    verified: true,
-                                    verifyStatus: 'success',
-                                    studentId: matchedZKProof.studentId
-                                };
-                            } else if (proofData.pi_a || proofData.pA) {
-                                // Already in the correct format
-                                zkProofData = {
-                                    pA: proofData.pA || proofData.pi_a || [],
-                                    pB: proofData.pB || proofData.pi_b || [],
-                                    pC: proofData.pC || proofData.pi_c || [],
-                                    publicSignals: proofData.publicSignals || [],
-                                    commitment: proofData.commitment,
-                                    verified: true,
-                                    verifyStatus: 'success',
-                                    studentId: matchedZKProof.studentId
-                                };
-                            }
-                            isZKVerified = true;
-                            console.log(`    Certificate ${idx + 1} (${studentId}): ZK Proof matched and verified`);
-                            console.log(`       Proof structure: pA=${zkProofData.pA.length > 0 ? 'present' : 'missing'}, pB=${zkProofData.pB.length > 0 ? 'present' : 'missing'}, pC=${zkProofData.pC.length > 0 ? 'present' : 'missing'}`);
+
+                    if (matchedZKProof.status === 'success' && matchedZKProof.zkProof) {
+                        const proofData = matchedZKProof.zkProof;
+                        if (proofData.proof) {
+                            zkProofData = {
+                                pA: proofData.proof.pi_a || proofData.proof.a || [],
+                                pB: proofData.proof.pi_b || proofData.proof.b || [],
+                                pC: proofData.proof.pi_c || proofData.proof.c || [],
+                                publicSignals: proofData.publicSignals || [],
+                                commitment: proofData.commitment,
+                                verified: true,
+                                verifyStatus: 'success',
+                                studentId: matchedZKProof.studentId
+                            };
+                        } else if (proofData.pi_a || proofData.pA) {
+                            zkProofData = {
+                                pA: proofData.pA || proofData.pi_a || [],
+                                pB: proofData.pB || proofData.pi_b || [],
+                                pC: proofData.pC || proofData.pi_c || [],
+                                publicSignals: proofData.publicSignals || [],
+                                commitment: proofData.commitment,
+                                verified: true,
+                                verifyStatus: 'success',
+                                studentId: matchedZKProof.studentId
+                            };
                         }
-                    } else if (matchedZKProof) {
-                        console.log(`     Certificate ${idx + 1} (${studentId}): ZK Proof generation failed - status: ${matchedZKProof.status}`);
+                        isZKVerified = true;
+                        console.log(`    Certificate ${idx + 1} (${realStudentId}): ZK Proof matched and verified`);
+                        console.log(`       Proof structure: pA=${zkProofData.pA.length > 0 ? 'present' : 'missing'}, pB=${zkProofData.pB.length > 0 ? 'present' : 'missing'}, pC=${zkProofData.pC.length > 0 ? 'present' : 'missing'}`);
                     } else {
-                        console.log(`   ℹ️  Certificate ${idx + 1} (${studentId}): No matching ZK proof found in batch`);
+                        console.error(`❌ Certificate ${idx + 1} (${realStudentId}): ZK Proof found but not successful or missing proof data. Certificate will not be saved.`);
+                        return null;
                     }
-                    
+
                     return {
                         certificateId: cert.certificateId || `CERT${Date.now()}${Math.random().toString(36).substr(2, 9)}`,
                         name: cert.name || cert.studentName,
                         email: cert.email || cert.studentEmail,
-                        studentId: studentId,
+                        studentId: realStudentId,
                         issueDate: cert.issueDate || new Date().toLocaleDateString(),
                         verificationCode: cert.verificationCode || `VF${Math.random().toString(36).substr(2, 8).toUpperCase()}`,
-                        
+
                         // Blockchain & Deployment
                         deploymentId: deployment._id,
                         transactionHash: tx.hash,
                         blockNumber: receipt.blockNumber,
                         contractAddress: contractAddresses.contracts.ZKCertificateSystem.address,
-                        
+
                         // Merkle Tree
-                        merkleRoot: merkleRoot,
-                        merkleProof: cert.merkleProof || cert.finalMerkleProof || [],
-                        leafHash: cert.leafHash || cert.finalCommitment,
-                        
+                        // Always use finalMerkleRoot and finalMerkleProof — these were
+                        // generated from the tree that includes tx details in each leaf.
+                        // The pre-deployment merkleRoot/merkleProof are intentionally
+                        // NOT used here; they belong to a different tree.
+                        merkleRoot: finalMerkleRoot,
+                        merkleProof: cert.finalMerkleProof || [],
+                        leafHash: cert.finalCommitment || cert.leafHash,
+
                         // Content
                         content: {
                             institutionName: metadata?.institutionName || 'Educational Institution',
@@ -1040,11 +1052,10 @@ router.post('/deploy', async (req, res) => {
                             certificateProgram: metadata?.courseName,
                             studentName: cert.name || cert.studentName,
                             studentEmail: cert.email || cert.studentEmail,
-                            studentId: studentId,
+                            studentId: realStudentId,
                             graduationYear: metadata?.graduationYear || new Date().getFullYear()
                         },
-                        
-                        // ZK Proof Data - NOW INCLUDES REAL PROOF DATA IF SUCCESSFUL
+
                         zkProof: zkProofData,
                         zkProofVerified: isZKVerified,
                         verified: !!cert.zkProof?.verified,
@@ -1657,5 +1668,172 @@ router.get('/certificate-stats', async (req, res) => {
         });
     }
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GET /api/workflow/retrieve
+// Searches MongoDB certificates by studentId, name, email, certId, txHash,
+// blockHash, merkleRoot, or verificationCode.
+// ─────────────────────────────────────────────────────────────────────────────
+router.get('/retrieve', async (req, res) => {
+    const { query, type = 'studentId' } = req.query;
+    const q = (query || '').trim();
+
+    if (!q) {
+        return res.status(400).json({ success: false, message: 'query parameter is required' });
+    }
+
+    try {
+        let certificates = [];
+        const regex = { $regex: q, $options: 'i' };
+
+        switch (type) {
+            case 'studentId':
+                certificates = await Certificate.find({
+                    $or: [
+                        { studentId: regex },
+                        { 'content.studentId': regex },
+                    ]
+                }).populate('deploymentId').sort({ createdAt: -1 }).lean();
+                break;
+
+            case 'name':
+                certificates = await Certificate.find({
+                    $or: [
+                        { name: regex },
+                        { 'content.studentName': regex },
+                    ]
+                }).populate('deploymentId').sort({ createdAt: -1 }).lean();
+                break;
+
+            case 'email':
+                certificates = await Certificate.find({
+                    $or: [
+                        { email: regex },
+                        { 'content.studentEmail': regex },
+                    ]
+                }).populate('deploymentId').sort({ createdAt: -1 }).lean();
+                break;
+
+            case 'certId':
+                certificates = await Certificate.find({
+                    certificateId: regex
+                }).populate('deploymentId').sort({ createdAt: -1 }).lean();
+                break;
+
+            case 'txHash':
+                certificates = await Certificate.find({
+                    transactionHash: regex
+                }).populate('deploymentId').sort({ createdAt: -1 }).lean();
+                if (!certificates.length) {
+                    const deps = await DeploymentRecord.find({ transactionHash: regex }).lean();
+                    if (deps.length) {
+                        certificates = await Certificate.find({
+                            deploymentId: { $in: deps.map(d => d._id) }
+                        }).populate('deploymentId').sort({ createdAt: -1 }).lean();
+                    }
+                }
+                break;
+
+            case 'blockHash': {
+                const deps = await DeploymentRecord.find({ blockHash: regex }).lean();
+                if (deps.length) {
+                    certificates = await Certificate.find({
+                        deploymentId: { $in: deps.map(d => d._id) }
+                    }).populate('deploymentId').sort({ createdAt: -1 }).lean();
+                }
+                break;
+            }
+
+            case 'merkleRoot':
+                certificates = await Certificate.find({
+                    merkleRoot: regex
+                }).populate('deploymentId').sort({ createdAt: -1 }).lean();
+                if (!certificates.length) {
+                    const deps = await DeploymentRecord.find({ merkleRoot: regex }).lean();
+                    if (deps.length) {
+                        certificates = await Certificate.find({
+                            deploymentId: { $in: deps.map(d => d._id) }
+                        }).populate('deploymentId').sort({ createdAt: -1 }).lean();
+                    }
+                }
+                break;
+
+            case 'verificationCode':
+                certificates = await Certificate.find({
+                    verificationCode: regex
+                }).populate('deploymentId').sort({ createdAt: -1 }).lean();
+                break;
+
+            default:
+                return res.status(400).json({ success: false, message: `Unknown type: ${type}` });
+        }
+
+        if (!certificates.length) {
+            return res.status(404).json({
+                success: false,
+                message: `No certificates found for "${q}"`,
+            });
+        }
+
+        const dep = certificates[0]?.deploymentId || {};
+        const deploymentInfo = {
+            networkDisplay:    dep.networkDisplay,
+            networkName:       dep.networkName,
+            chainId:           dep.chainId,
+            layerType:         dep.layerType,
+            isLayer2:          dep.isLayer2,
+            rpcUrl:            dep.rpcUrl,
+            contractAddress:   dep.contractAddress   || certificates[0]?.contractAddress,
+            transactionHash:   dep.transactionHash   || certificates[0]?.transactionHash,
+            blockNumber:       dep.blockNumber       || certificates[0]?.blockNumber,
+            blockHash:         dep.blockHash,
+            gasUsed:           dep.gasUsed,
+            merkleRoot:        dep.finalMerkleRoot   || dep.merkleRoot || certificates[0]?.merkleRoot,
+            totalCertificates: dep.totalCertificates,
+            deployedAt:        dep.deployedAt,
+            metadata:          dep.metadata,
+        };
+
+        const shapedCerts = certificates.map(c => ({
+            certificateId:    c.certificateId,
+            name:             c.name,
+            email:            c.email,
+            studentId:        c.studentId || c.content?.studentId,
+            issueDate:        c.issueDate,
+            verificationCode: c.verificationCode,
+            status:           c.status,
+            transactionHash:  c.transactionHash,
+            blockNumber:      c.blockNumber,
+            contractAddress:  c.contractAddress,
+            merkleRoot:       c.merkleRoot,
+            merkleProof:      c.merkleProof,
+            leafHash:         c.leafHash,
+            zkProof:          c.zkProof,
+            zkProofVerified:  c.zkProofVerified,
+            content:          c.content,
+            deployedAt:       c.deployedAt,
+            createdAt:        c.createdAt,
+        }));
+
+        return res.status(200).json({
+            success: true,
+            data: {
+                ...deploymentInfo,
+                certificates:      shapedCerts,
+                totalCertificates: certificates.length,
+                queryType:         type,
+                searchQuery:       q,
+            },
+        });
+
+    } catch (err) {
+        console.error('Workflow retrieve error:', err);
+        return res.status(500).json({
+            success: false,
+            message: `Server error: ${err.message}`,
+        });
+    }
+});
+
 
 module.exports = router;

@@ -105,9 +105,6 @@ export default function Home() {
         <div className="bg-gradient-to-br from-primary-50 to-primary-100">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
             <div className="text-center">
-              <div className="mx-auto h-24 w-24 bg-primary-600 rounded-full flex items-center justify-center mb-8">
-                <span className="text-white text-4xl font-bold">ZK</span>
-              </div>
               <h1 className="text-4xl md:text-6xl font-bold text-gray-900 mb-6">
                 Privacy-Preserving <br />
                 <span className="text-primary-600">Digital Certificates</span>
@@ -194,7 +191,7 @@ export default function Home() {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center mb-16">
               <h2 className="text-3xl font-bold text-gray-900 mb-4">
-                Why Choose ZK Certificates?
+                Why Choose Digital Certificates?
               </h2>
             </div>
 

@@ -8,7 +8,7 @@ const navigation = [
   { name: 'Dashboard', href: '/' },
   { name: 'Generate Proof', href: '/generate-proof' },
   { name: 'Process & Map', href: '/verify' },
-  { name: 'View Data', href: '/data-verification' },
+  { name: 'Retrieve', href: '/retrieve' },        // ← replaced 'View Data' (/data-verification)
   { name: 'Issue Certificates', href: '/issue' },
   { name: 'Documentation', href: '/docs' }
 ];
@@ -53,14 +53,12 @@ export default function Layout({ children, title = 'ZK Certificate System' }) {
               {/* Desktop Navigation */}
               <div className="hidden md:flex items-center space-x-8">
                 {navigation.map((item) => (
-                  <Link
-                    key={item.name}
-                    href={item.href}
-                  >
-                    <a className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${isActive(item.href)
-                      ? 'bg-primary-100 text-primary-700'
-                      : 'text-gray-700 hover:text-primary-600 hover:bg-gray-100'
-                      }`}>
+                  <Link key={item.name} href={item.href}>
+                    <a className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                      isActive(item.href)
+                        ? 'bg-primary-100 text-primary-700'
+                        : 'text-gray-700 hover:text-primary-600 hover:bg-gray-100'
+                    }`}>
                       {item.name}
                     </a>
                   </Link>
@@ -88,15 +86,13 @@ export default function Layout({ children, title = 'ZK Certificate System' }) {
             <div className="md:hidden bg-white border-t border-gray-200">
               <div className="px-2 pt-2 pb-3 space-y-1">
                 {navigation.map((item) => (
-                  <Link
-                    key={item.name}
-                    href={item.href}
-                  >
+                  <Link key={item.name} href={item.href}>
                     <a
-                      className={`block px-3 py-2 rounded-md text-base font-medium transition-colors ${isActive(item.href)
-                        ? 'bg-primary-100 text-primary-700'
-                        : 'text-gray-700 hover:text-primary-600 hover:bg-gray-100'
-                        }`}
+                      className={`block px-3 py-2 rounded-md text-base font-medium transition-colors ${
+                        isActive(item.href)
+                          ? 'bg-primary-100 text-primary-700'
+                          : 'text-gray-700 hover:text-primary-600 hover:bg-gray-100'
+                      }`}
                       onClick={() => setMobileMenuOpen(false)}
                     >
                       {item.name}

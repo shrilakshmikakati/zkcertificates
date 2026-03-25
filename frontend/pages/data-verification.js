@@ -59,9 +59,6 @@ export default function DataVerification() {
       <Layout title="Data Verification - ZK Certificates">
         <div className="min-h-screen bg-gray-50 flex items-center justify-center">
           <div className="text-center max-w-md mx-auto">
-            <div className="mx-auto h-16 w-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
-              <span className="text-red-600 text-2xl">⚠️</span>
-            </div>
             <h2 className="text-2xl font-bold text-gray-900 mb-4">Error Loading Data</h2>
             <p className="text-gray-600 mb-6">{error}</p>
             <div className="space-x-4">
@@ -91,9 +88,6 @@ export default function DataVerification() {
           <div className="bg-white border-b">
             <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
               <div className="text-center">
-                <div className="mx-auto h-16 w-16 bg-yellow-100 rounded-full flex items-center justify-center mb-6">
-                  <span className="text-yellow-600 text-2xl">📊</span>
-                </div>
                 <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
                   Data Verification
                 </h1>
@@ -132,10 +126,8 @@ export default function DataVerification() {
               <div className="flex items-center space-x-8">
                 <Link href="/">
                   <a className="flex items-center space-x-3">
-                    <div className="h-10 w-10 bg-primary-600 rounded-full flex items-center justify-center">
-                      <span className="text-white text-lg font-bold">ZK</span>
-                    </div>
-                    <span className="text-xl font-bold text-gray-900">ZK Certificates</span>
+                   
+                    <span className="text-xl font-bold text-gray-900">National Institute of Technology, Warangal</span>
                   </a>
                 </Link>
                 <nav className="hidden md:flex space-x-8">
@@ -190,7 +182,6 @@ export default function DataVerification() {
               <div className="flex items-center justify-between">
                 <div>
                   <h2 className="text-xl font-semibold text-gray-900 flex items-center">
-                    <span className="mr-2">👥</span>
                     Complete Student List ({dashboardStats.totalStudents} students)
                     {dashboardStats.isDemo && (
                       <span className="ml-3 inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">

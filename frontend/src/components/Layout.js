@@ -43,9 +43,9 @@ export default function Layout({ children, title = 'ZK Certificate System' }) {
                 <Link href="/">
                   <a className="flex items-center space-x-2">
                     <div className="h-8 w-8 bg-primary-600 rounded-full flex items-center justify-center">
-                      <span className="text-white font-bold text-sm">ZK</span>
+                      <span className="text-white font-bold text-sm">NM</span>
                     </div>
-                    <span className="text-xl font-bold text-gray-900">ZK Certificates</span>
+                    <span className="text-xl font-bold text-gray-900"> NITminer Certificates</span>
                   </a>
                 </Link>
               </div>
@@ -116,34 +116,14 @@ export default function Layout({ children, title = 'ZK Certificate System' }) {
               <div className="col-span-1 md:col-span-2">
                 <div className="flex items-center space-x-2 mb-4">
                   <div className="h-8 w-8 bg-primary-600 rounded-full flex items-center justify-center">
-                    <span className="text-white font-bold text-sm">ZK</span>
+                    <span className="text-white font-bold text-sm">NM</span>
                   </div>
-                  <span className="text-xl font-bold text-gray-900">Certificates</span>
+                  <span className="text-xl font-bold text-gray-900">NITminer Certificates</span>
                 </div>
                 <p className="text-gray-600 text-sm max-w-md">
                   Privacy-preserving bulk certificate generation and verification system using
                   Zero-Knowledge Proofs and blockchain technology.
                 </p>
-              </div>
-
-              <div>
-                <h3 className="text-sm font-semibold text-gray-900 mb-3">Features</h3>
-                <ul className="space-y-2 text-sm text-gray-600">
-                  <li>Bulk Certificate Issuance</li>
-                  <li>Zero-Knowledge Verification</li>
-                  <li>Blockchain Security</li>
-                  <li>Privacy Preservation</li>
-                </ul>
-              </div>
-
-              <div>
-                <h3 className="text-sm font-semibold text-gray-900 mb-3">Technology</h3>
-                <ul className="space-y-2 text-sm text-gray-600">
-                  <li>Circom Circuits</li>
-                  <li>Groth16 Proofs</li>
-                  <li>Merkle Trees</li>
-                  <li>Smart Contracts</li>
-                </ul>
               </div>
             </div>
 

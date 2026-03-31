@@ -12,8 +12,6 @@ export default function VerifyData() {
   const [fileName, setFileName] = useState('');
   const [processingErrors, setProcessingErrors] = useState([]);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [enableZKProofs, setEnableZKProofs] = useState(true);
-  const [zkProofStatus, setZkProofStatus] = useState('');
   const [requiresReupload, setRequiresReupload] = useState(false);
 
   useEffect(() => {
@@ -87,145 +85,10 @@ export default function VerifyData() {
     }));
   };
 
-  const generateZKProofsForStudents = async (students) => {
-    if (!enableZKProofs) return null;
-    
-    try {
-      setZkProofStatus('Generating privacy-preserving ZK proofs...');
-      
-      console.log('🔐 STARTING ZK PROOF GENERATION:', {
-        studentCount: students.length,
-        enableZKProofs: enableZKProofs,
-        firstStudent: students[0] ? {
-          keys: Object.keys(students[0]),
-          studentId: students[0].studentId,
-          student_id: students[0].student_id,
-          hasName: !!students[0].name
-        } : 'N/A'
-      });
-      
-      const zkProofs = await Promise.all(
-        students.map(async (student, index) => {
-          try {
-            // ─────────────────────────────────────────────────────────────
-            // FIX: Use the real student ID from ALL possible field names.
-            // Previously only checked student.studentId (camelCase) which
-            // was undefined for CSV data that uses student_id (underscore),
-            // causing fallback to STU0, STU1... index IDs.
-            // Now checks every field name that DynamicCertificateService
-            // and the field mapping could produce.
-            // ─────────────────────────────────────────────────────────────
-            const studentId =
-              student.student_id         ||   // underscore — from CSV field mapping
-              student.studentId          ||   // camelCase — from some sources
-              student['Student ID']      ||   // original CSV column name
-              student['STUDENT ID']      ||
-              student['Roll No']         ||
-              student['Roll_No']         ||
-              student['roll_no']         ||
-              student['ID']              ||
-              student['id']              ||
-              student.roll               ||
-              student.Roll               ||
-              student.registration_no    ||
-              student.reg_no             ||
-              null;
-
-            // Only fall back to index if truly no ID found
-            const finalStudentId = studentId || `STU${index}`;
-
-            if (index < 3) {
-              console.log(`  📝 Student ${index + 1}: resolved studentId="${finalStudentId}"`, {
-                raw_student_id: student.student_id,
-                raw_studentId:  student.studentId,
-                name:           student.name,
-                email:          student.email
-              });
-            }
-            
-            const requestBody = {
-              studentId: finalStudentId,
-              subjects: [
-                student.math    || 0,
-                student.science || 0,
-                student.english || 0,
-                student.history || 0,
-                student.art     || 0
-              ],
-              salt: Math.random().toString(36).substr(2, 16),
-              minPassingGrade: 60,
-              requireAllPassed: false
-            };
-            
-            const response = await fetch(apiUrl('/api/zkproofs/generate'), {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(requestBody)
-            });
-            
-            if (response.ok) {
-              const zkData = await response.json();
-              const result = {
-                studentId: finalStudentId,
-                zkProof: zkData.data,
-                status: 'success'
-              };
-              if (index < 3) {
-                console.log(`    ✓ Generated proof for: ${finalStudentId}`, {
-                  hasProof: !!result.zkProof,
-                  proofKeys: result.zkProof ? Object.keys(result.zkProof) : 'N/A'
-                });
-              }
-              return result;
-            } else {
-              const errorData = await response.json();
-              if (index < 3) {
-                console.log(`    ✗ Failed to generate: ${finalStudentId}`, errorData);
-              }
-              return {
-                studentId: finalStudentId,
-                status: 'failed',
-                error: 'ZK proof generation failed'
-              };
-            }
-          } catch (error) {
-            if (index < 3) {
-              console.log(`    ✗ Error for student ${index}: ${error.message}`);
-            }
-            return {
-              studentId:
-                student.student_id || student.studentId ||
-                student['Student ID'] || student['ID'] || `STU${index}`,
-              status: 'failed',
-              error: error.message
-            };
-          }
-        })
-      );
-      
-      const successful = zkProofs.filter(p => p.status === 'success').length;
-      const failed     = zkProofs.filter(p => p.status === 'failed').length;
-      
-      console.log('✅ ZK PROOF BATCH COMPLETE:', {
-        total: zkProofs.length,
-        successful,
-        failed,
-        sampleProofs: zkProofs.slice(0, 3).map(p => ({
-          studentId: p.studentId,
-          status: p.status,
-          hasProof: !!p.zkProof
-        }))
-      });
-      
-      setZkProofStatus(`Generated ${successful} ZK proofs (${failed} failed)`);
-      return zkProofs;
-
-    } catch (error) {
-      console.warn('ZK proof generation failed:', error);
-      setZkProofStatus('ZK proof generation failed - proceeding with standard verification');
-      return null;
-    }
-  };
+  // ZK proofs are now generated server-side during /api/workflow/process.
+  // The frontend no longer generates, stores, or sends proof data.
+  // This function is kept as a no-op stub so no call sites need changing.
+  const generateZKProofsForStudents = async (_students) => null;
 
   const processAndProceedToIssue = async () => {
     if (!sessionId) {
@@ -234,8 +97,7 @@ export default function VerifyData() {
     }
 
     setIsProcessing(true);
-    setZkProofStatus('');
-
+    
     try {
       const response = await fetch(apiUrl('/api/workflow/process'), {
         method: 'POST',
@@ -259,38 +121,38 @@ export default function VerifyData() {
       const data = await response.json();
       if (!data.success) throw new Error(data.message || 'Data processing failed');
 
-      const zkProofs = await generateZKProofsForStudents(data.certificates);
-
-      console.log('📊 ZK PROOF GENERATION COMPLETE:', {
-        generated:   zkProofs ? zkProofs.length : 0,
-        successful:  zkProofs ? zkProofs.filter(p => p.status === 'success').length : 0,
-        failed:      zkProofs ? zkProofs.filter(p => p.status === 'failed').length : 0,
-        firstProof:  zkProofs && zkProofs[0] ? {
-          studentId:    zkProofs[0].studentId,
-          status:       zkProofs[0].status,
-          hasProofData: !!zkProofs[0].zkProof
-        } : 'N/A',
-        allProofs: JSON.stringify(zkProofs)
-      });
-
+      // ZK proofs are generated server-side during /process and stored in the session.
+      // zkProofSummary contains only counts (succeeded/failed) for display — no proof data.
       const certificateData = {
-        certificates:   data.certificates,
-        merkleRoot:     data.merkleRoot,
-        merkleTreeStats:data.merkleTreeStats,
-        zkProofs:       zkProofs,
-        enabledPrivacy: enableZKProofs,
-        totalCount:     data.certificates.length,
-        processedAt:    new Date().toISOString(),
-        fileName:       fileName
+        certificates:    data.certificates,
+        merkleRoot:      data.merkleRoot,
+        merkleTreeStats: data.merkleTreeStats,
+        zkProofSummary:  data.zkProofSummary || null,
+        enabledPrivacy:  true,
+        totalCount:      data.certificates.length,
+        processedAt:     new Date().toISOString(),
+        fileName:        fileName,
+        sessionId:       sessionId
       };
 
-      console.log('💾 STORING TO LOCALSTORAGE - verifiedStudentData:', {
-        certificatesCount: certificateData.certificates?.length,
-        zkProofsCount:     certificateData.zkProofs?.length,
-        enabledPrivacy:    certificateData.enabledPrivacy
-      });
-
-      localStorage.setItem('verifiedStudentData', JSON.stringify(certificateData));
+      // ── Lightweight localStorage write (no proof blobs, no quota risk) ───────
+      try {
+        localStorage.setItem('verifiedStudentData', JSON.stringify(certificateData));
+        localStorage.removeItem('issueCertificateData');
+      } catch (quotaErr) {
+        // Last resort — store only the scalars needed to navigate to /issue
+        localStorage.setItem('verifiedStudentData', JSON.stringify({
+          sessionId,
+          merkleRoot:     data.merkleRoot,
+          totalCount:     data.certificates.length,
+          fileName,
+          processedAt:    new Date().toISOString(),
+          enabledPrivacy: true,
+          certificates:   [],
+          isLightweight:  true
+        }));
+        localStorage.removeItem('issueCertificateData');
+      }
       router.push('/issue');
 
     } catch (error) {
@@ -452,7 +314,7 @@ export default function VerifyData() {
           {/* Smart mapping status */}
           {Object.entries(fieldMappings).some(([, v]) => v) && (
             <div className="bg-blue-50 border border-blue-200 p-4 rounded-lg mb-6">
-              <h4 className="text-sm font-semibold text-blue-800 mb-2">🧠 Smart Mapping Applied</h4>
+              <h4 className="text-sm font-semibold text-blue-800 mb-2"> Smart Mapping Applied</h4>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-xs">
                 {Object.entries(fieldMappings).filter(([, v]) => v).map(([field, column]) => (
                   <div key={field} className="flex items-center">
@@ -500,40 +362,17 @@ export default function VerifyData() {
             </div>
           )}
 
-          {/* Privacy & ZK Proof toggle */}
-          <div className="bg-indigo-50 border border-indigo-200 p-6 rounded-lg mb-8">
-            <h4 className="text-lg font-semibold text-indigo-800 mb-4">Privacy-Preserving Options</h4>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="flex-1">
-                  <h5 className="font-medium text-gray-900">Generate Zero-Knowledge Proofs</h5>
-                  <p className="text-sm text-gray-600">
-                    Enable privacy-preserving verification that proves academic achievements without revealing actual grades
-                  </p>
-                </div>
-                <label className="relative inline-flex items-center cursor-pointer ml-4">
-                  <input
-                    type="checkbox"
-                    className="sr-only peer"
-                    checked={enableZKProofs}
-                    onChange={(e) => setEnableZKProofs(e.target.checked)}
-                  />
-                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
-                </label>
+          {/* ZK Proofs are generated server-side automatically during processing */}
+          <div className="bg-indigo-50 border border-indigo-200 p-4 rounded-lg mb-8">
+            <div className="flex items-center space-x-3">
+              <span className="w-2 h-2 bg-indigo-500 rounded-full"></span>
+              <div>
+                <h5 className="font-medium text-indigo-900">Zero-Knowledge Proofs</h5>
+                <p className="text-sm text-indigo-700 mt-0.5">
+                  Privacy-preserving ZK proofs are generated automatically on the server during processing.
+                  No grade data leaves the server.
+                </p>
               </div>
-              {enableZKProofs && (
-                <div className="bg-white p-4 rounded-lg border border-indigo-200">
-                  <div className="flex items-center space-x-2 text-sm text-indigo-700">
-                    <span className="w-2 h-2 bg-indigo-500 rounded-full animate-pulse"></span>
-                    <span>ZK proofs will use the real student IDs from your uploaded data</span>
-                  </div>
-                </div>
-              )}
-              {zkProofStatus && (
-                <div className="bg-white p-3 rounded-lg border border-indigo-200">
-                  <div className="text-sm text-indigo-700">{zkProofStatus}</div>
-                </div>
-              )}
             </div>
           </div>
 

@@ -14,6 +14,10 @@ const deploymentRecordSchema = new mongoose.Schema({
     blockHash: { type: String, required: true },
     gasUsed: { type: String, required: true },
     merkleRoot: { type: String, required: true, index: true },
+    // finalMerkleRoot is computed after the blockchain tx is mined.
+    // Each leaf includes tx hash + block details so the root changes post-deployment.
+    // This is the root that stored Merkle proofs verify against.
+    finalMerkleRoot: { type: String, index: true },
     totalCertificates: { type: Number, required: true },
     metadata: { type: mongoose.Schema.Types.Mixed, default: {} },
     deployedAt: { type: Date, required: true }

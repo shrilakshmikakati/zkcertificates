@@ -75,7 +75,10 @@ export default function GenerateProof() {
         throw new Error(data.message || 'File analysis failed');
       }
 
-      // Store file analysis data in localStorage for verify page
+      // Clear old fileAnalysisData
+      localStorage.removeItem('fileAnalysisData');
+
+      // Store new file analysis data
       localStorage.setItem('fileAnalysisData', JSON.stringify({
         sessionId: data.sessionId,
         fileName: file.name,
@@ -100,9 +103,6 @@ export default function GenerateProof() {
         <div className="bg-white border-b">
           <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
             <div className="text-center">
-              <div className="mx-auto h-16 w-16 bg-primary-600 rounded-full flex items-center justify-center mb-6">
-                <span className="text-white text-2xl font-bold">📊</span>
-              </div>
               <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
                 Upload Student Data
               </h1>
@@ -122,9 +122,6 @@ export default function GenerateProof() {
 
                 <div className="border-2 border-dashed border-gray-300 rounded-lg p-12 hover:border-primary-500 transition-colors">
                   <div className="text-center">
-                    <div className="mx-auto h-16 w-16 bg-primary-100 rounded-full flex items-center justify-center mb-4">
-                      <span className="text-primary-600 text-2xl">📄</span>
-                    </div>
                     <h3 className="text-lg font-semibold text-gray-900 mb-2">
                       Select CSV or Excel File
                     </h3>
@@ -167,7 +164,7 @@ export default function GenerateProof() {
                         <li>• <strong>name</strong> - Student full name (Required)</li>
                         <li>• <strong>student_id</strong> - Student ID or roll number (Recommended)</li>
                         <li>• <strong>email</strong> - Student email address (Recommended)</li>
-                        <li>• <strong>percentage/score/marks</strong> - Score in percentage or points (Recommended)</li>
+                        <li>• <strong>percentage</strong> - Score in percentage(Recommended)</li>
                       </ul>
                       <p className="text-xs text-blue-600 mt-2">
                         After upload, you'll verify all student data before proceeding to certificate generation.

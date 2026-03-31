@@ -32,14 +32,6 @@ async function sha256Bytes(data) {
 }
 
 async function verifyMerkleProof(leafHash, proof, merkleRoot) {
-    // ROOT CAUSE FIX: the original code used the `position` field (left/right) to
-    // decide concat order, but the server builds the tree with sortPairs:true —
-    // merkletreejs sorts each pair lexicographically before hashing, making
-    // `position` irrelevant for hash order.  Using position caused every cert to
-    // show "Merkle Failed".
-    //
-    // This client-side implementation mirrors the exact sortPairs logic so no
-    // extra server round-trip is needed.
     try {
         if (!leafHash) { console.error('Merkle verify: leafHash missing'); return false; }
         if (!Array.isArray(proof) || proof.length === 0) { console.error('Merkle verify: proof empty', { proof }); return false; }
@@ -48,8 +40,6 @@ async function verifyMerkleProof(leafHash, proof, merkleRoot) {
         let computed = hexToBytes(leafHash);
 
         for (const [i, step] of proof.entries()) {
-            // Accept both {data, position} objects and bare hex strings.
-            // `position` is intentionally ignored — see note above.
             let siblingHex;
             if (typeof step === 'string') {
                 siblingHex = step;
@@ -234,14 +224,11 @@ export default function Retrieve() {
                 <div className="bg-white border-b">
                     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
                         <div className="text-center">
-                            <div className="mx-auto h-16 w-16 bg-primary-600 rounded-full flex items-center justify-center mb-6">
-                                <span className="text-white text-2xl font-bold">🔍</span>
-                            </div>
                             <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
                                 Retrieve Certificate
                             </h1>
                             <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-                                Search MongoDB by Student ID, Name, Email, Certificate ID,
+                                Search by Student ID, Name, Email, Certificate ID,
                                 Transaction Hash, Block Hash, Merkle Root, or Verification Code.
                             </p>
                         </div>
@@ -316,9 +303,6 @@ export default function Retrieve() {
                     {/* Empty state */}
                     {!isLoading && !result && !error && (
                         <div className="bg-white rounded-xl shadow-sm p-12 text-center">
-                            <div className="mx-auto h-16 w-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
-                                <span className="text-3xl">⛓</span>
-                            </div>
                             <h2 className="text-2xl font-semibold text-gray-900 mb-4">No Search Yet</h2>
                             <p className="text-gray-600 mb-8 max-w-md mx-auto">
                                 Enter a Student ID or other identifier above to retrieve the certificate record.
@@ -412,7 +396,7 @@ export default function Retrieve() {
                                             </span>
                                         </h2>
                                         <p className="text-sm text-gray-600 mt-1">
-                                            Retrieved from MongoDB &nbsp;·&nbsp; {result.certificates.length} record(s) found
+                                            Retrieved from &nbsp;·&nbsp; {result.certificates.length} record(s) found
                                         </p>
                                     </div>
                                     {(() => {
@@ -494,7 +478,7 @@ export default function Retrieve() {
                                         <h2 className="text-xl font-semibold text-gray-900">
                                             All Matched Certificates ({result.certificates.length})
                                         </h2>
-                                        <p className="text-sm text-gray-600 mt-1">Full list with ZK proof verification status</p>
+                                        <p className="text-sm text-gray-600 mt-1">Full list with verification status</p>
                                     </div>
 
                                     <div className="overflow-x-auto max-h-96 overflow-y-auto">
@@ -506,6 +490,7 @@ export default function Retrieve() {
                                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Student ID</th>
                                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Certificate ID</th>
                                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Issue Date</th>
+                                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Grade</th>
                                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Proof</th>
                                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Merkle</th>
                                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Status</th>
@@ -521,6 +506,15 @@ export default function Retrieve() {
                                                             <td className="px-6 py-3 text-sm text-gray-600">{cert.studentId || cert.content?.studentId || '—'}</td>
                                                             <td className="px-6 py-3 text-sm text-gray-600 font-mono text-xs">{cert.certificateId ? shortHash(cert.certificateId) : '—'}</td>
                                                             <td className="px-6 py-3 text-sm text-gray-600">{cert.issueDate || '—'}</td>
+                                                            <td className="px-6 py-3 text-sm text-gray-600">{
+                                                                cert.grade ||
+                                                                cert.content?.grade ||
+                                                                cert.content?.Grade ||
+                                                                cert.content?.marks ||
+                                                                cert.content?.score ||
+                                                                cert.content?.percentage ||
+                                                                '—'
+                                                            }</td>
                                                             <td className="px-6 py-3">
                                                                 {zkStatus === 'verifying' ? (
                                                                     <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">…</span>

@@ -8,8 +8,6 @@ const csv = require('csv-parser');
 const XLSX = require('xlsx');
 
 const DynamicCertificateService = require('../services/DynamicCertificateService');
-
-// ── ADD: models + DB for /retrieve ───────────────────────────────────────────
 const Certificate      = require('../models/Certificate');
 const DeploymentRecord = require('../models/DeploymentRecord');
 const { connectDatabase, isDatabaseConnected } = require('../config/database');
@@ -17,7 +15,6 @@ const { connectDatabase, isDatabaseConnected } = require('../config/database');
 
 const router = express.Router();
 
-// Configure multer for file uploads with better organization
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
         const uploadDir = 'uploads/temp';
@@ -55,16 +52,10 @@ const upload = multer({
     }
 });
 
-// ─────────────────────────────────────────────────────────────────────────────
-// GET /api/certificates/retrieve
-// Query MongoDB for certificates by studentId, certId, blockHash, txHash,
-// merkleRoot, email, or verificationCode.
-//
-// Usage: GET /api/certificates/retrieve?query=S2026001&type=studentId
-// ─────────────────────────────────────────────────────────────────────────────
 
 const RETRIEVE_LABELS = {
     studentId:        'Student ID',
+    name:             'Student Name',
     certId:           'Certificate ID',
     blockHash:        'Block Hash',
     txHash:           'Transaction Hash',
@@ -99,6 +90,15 @@ router.get('/retrieve', async (req, res) => {
                     $or: [
                         { studentId:           { $regex: q, $options: 'i' } },
                         { 'content.studentId': { $regex: q, $options: 'i' } },
+                    ],
+                }).populate('deploymentId').sort({ createdAt: -1 }).lean();
+                break;
+
+            case 'name':
+                certificates = await Certificate.find({
+                    $or: [
+                        { name:                   { $regex: q, $options: 'i' } },
+                        { 'content.studentName':  { $regex: q, $options: 'i' } },
                     ],
                 }).populate('deploymentId').sort({ createdAt: -1 }).lean();
                 break;
@@ -242,9 +242,6 @@ router.get('/retrieve', async (req, res) => {
     }
 });
 
-// ─────────────────────────────────────────────────────────────────────────────
-// ALL EXISTING ROUTES BELOW — unchanged
-// ─────────────────────────────────────────────────────────────────────────────
 
 /**
  * @route POST /api/certificates/parse

@@ -5,6 +5,10 @@ const certificateSchema = new mongoose.Schema({
     name: { type: String, required: true },
     email: { type: String, index: true },
     studentId: { type: String, index: true },
+    // Top-level academic fields — duplicated from content for fast querying
+    grade: { type: String, default: '' },
+    course: { type: String, default: '' },
+    percentage: { type: String, default: '' },
     
     issueDate: { type: String, required: true },
     verificationCode: { type: String, required: true, index: true },

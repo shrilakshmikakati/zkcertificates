@@ -1,0 +1,2385 @@
+{
+  "version": "3.4",
+  "log": [
+    {
+      "@openzeppelin/contracts/access/Ownable.sol:Ownable": {
+        "src": "@openzeppelin/contracts/access/Ownable.sol:20",
+        "inherit": [
+          "@openzeppelin/contracts/utils/Context.sol:Context"
+        ],
+        "libraries": [],
+        "methods": [
+          "owner()",
+          "renounceOwnership()",
+          "transferOwnership(address)"
+        ],
+        "linkReferences": [],
+        "errors": [
+          {
+            "kind": "constructor",
+            "contract": "Ownable",
+            "src": "@openzeppelin/contracts/access/Ownable.sol:28"
+          }
+        ],
+        "layout": {
+          "storage": [
+            {
+              "contract": "Ownable",
+              "label": "_owner",
+              "type": "t_address",
+              "src": "@openzeppelin/contracts/access/Ownable.sol:21"
+            }
+          ],
+          "types": {
+            "t_address": {
+              "label": "address"
+            }
+          },
+          "layoutVersion": "1.2",
+          "flat": false,
+          "namespaces": {}
+        },
+        "solcVersion": "0.8.17"
+      },
+      "@openzeppelin/contracts/security/ReentrancyGuard.sol:ReentrancyGuard": {
+        "src": "@openzeppelin/contracts/security/ReentrancyGuard.sol:22",
+        "inherit": [],
+        "libraries": [],
+        "methods": [],
+        "linkReferences": [],
+        "errors": [
+          {
+            "kind": "constructor",
+            "contract": "ReentrancyGuard",
+            "src": "@openzeppelin/contracts/security/ReentrancyGuard.sol:39"
+          }
+        ],
+        "layout": {
+          "storage": [
+            {
+              "contract": "ReentrancyGuard",
+              "label": "_status",
+              "type": "t_uint256",
+              "src": "@openzeppelin/contracts/security/ReentrancyGuard.sol:37"
+            }
+          ],
+          "types": {
+            "t_uint256": {
+              "label": "uint256"
+            }
+          },
+          "layoutVersion": "1.2",
+          "flat": false,
+          "namespaces": {}
+        },
+        "solcVersion": "0.8.17"
+      },
+      "@openzeppelin/contracts/utils/Context.sol:Context": {
+        "src": "@openzeppelin/contracts/utils/Context.sol:16",
+        "inherit": [],
+        "libraries": [],
+        "methods": [],
+        "linkReferences": [],
+        "errors": [],
+        "layout": {
+          "storage": [],
+          "types": {},
+          "layoutVersion": "1.2",
+          "flat": false,
+          "namespaces": {}
+        },
+        "solcVersion": "0.8.17"
+      },
+      "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol:MerkleProof": {
+        "src": "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol:20",
+        "version": {
+          "withMetadata": "d4171d70013861514d9e0741abec726b7a97ad86ba2bee64f8c9562a44c9e75e",
+          "withoutMetadata": "d4171d70013861514d9e0741abec726b7a97ad86ba2bee64f8c9562a44c9e75e",
+          "linkedWithoutMetadata": "d4171d70013861514d9e0741abec726b7a97ad86ba2bee64f8c9562a44c9e75e"
+        },
+        "inherit": [],
+        "libraries": [],
+        "methods": [],
+        "linkReferences": [],
+        "errors": [],
+        "layout": {
+          "storage": [],
+          "types": {},
+          "layoutVersion": "1.2",
+          "flat": false,
+          "namespaces": {}
+        },
+        "solcVersion": "0.8.17"
+      },
+      "contracts/CertificateRegistry.sol:CertificateRegistry": {
+        "src": "contracts/CertificateRegistry.sol:13",
+        "version": {
+          "withMetadata": "15610b86c71a5453e58ffd86172bf979133a67245e22620f00a124e67c980342",
+          "withoutMetadata": "15610b86c71a5453e58ffd86172bf979133a67245e22620f00a124e67c980342",
+          "linkedWithoutMetadata": "15610b86c71a5453e58ffd86172bf979133a67245e22620f00a124e67c980342"
+        },
+        "inherit": [
+          "@openzeppelin/contracts/security/ReentrancyGuard.sol:ReentrancyGuard",
+          "@openzeppelin/contracts/access/Ownable.sol:Ownable",
+          "@openzeppelin/contracts/utils/Context.sol:Context"
+        ],
+        "libraries": [],
+        "methods": [
+          "()",
+          "setInstitutionAuthorization(address,bool)",
+          "issueBatch(bytes32,string,string,uint256,uint256)",
+          "verifyCertificate(uint256,bytes32,bytes32[])",
+          "revokeBatch(uint256)",
+          "getBatchInfo(uint256)",
+          "getTotalBatches()"
+        ],
+        "linkReferences": [],
+        "errors": [
+          {
+            "kind": "constructor",
+            "contract": "CertificateRegistry",
+            "src": "contracts/CertificateRegistry.sol:53"
+          }
+        ],
+        "layout": {
+          "storage": [
+            {
+              "contract": "CertificateRegistry",
+              "label": "batches",
+              "type": "t_mapping(t_uint256,t_struct(BatchInfo)760_storage)",
+              "src": "contracts/CertificateRegistry.sol:25"
+            },
+            {
+              "contract": "CertificateRegistry",
+              "label": "authorizedInstitutions",
+              "type": "t_mapping(t_address,t_bool)",
+              "src": "contracts/CertificateRegistry.sol:28"
+            },
+            {
+              "contract": "CertificateRegistry",
+              "label": "nextBatchId",
+              "type": "t_uint256",
+              "src": "contracts/CertificateRegistry.sol:31"
+            }
+          ],
+          "types": {
+            "t_mapping(t_uint256,t_struct(BatchInfo)760_storage)": {
+              "label": "mapping(uint256 => struct CertificateRegistry.BatchInfo)"
+            },
+            "t_uint256": {
+              "label": "uint256"
+            },
+            "t_struct(BatchInfo)760_storage": {
+              "label": "struct CertificateRegistry.BatchInfo",
+              "members": [
+                {
+                  "label": "merkleRoot",
+                  "type": "t_bytes32"
+                },
+                {
+                  "label": "institutionName",
+                  "type": "t_string_storage"
+                },
+                {
+                  "label": "courseName",
+                  "type": "t_string_storage"
+                },
+                {
+                  "label": "graduationYear",
+                  "type": "t_uint256"
+                },
+                {
+                  "label": "totalStudents",
+                  "type": "t_uint256"
+                },
+                {
+                  "label": "timestamp",
+                  "type": "t_uint256"
+                },
+                {
+                  "label": "isValid",
+                  "type": "t_bool"
+                }
+              ]
+            },
+            "t_bytes32": {
+              "label": "bytes32"
+            },
+            "t_string_storage": {
+              "label": "string"
+            },
+            "t_bool": {
+              "label": "bool"
+            },
+            "t_mapping(t_address,t_bool)": {
+              "label": "mapping(address => bool)"
+            },
+            "t_address": {
+              "label": "address"
+            }
+          },
+          "layoutVersion": "1.2",
+          "flat": false,
+          "namespaces": {}
+        },
+        "solcVersion": "0.8.17"
+      },
+      "contracts/CertificateVerifier.sol:Groth16Verifier": {
+        "src": "contracts/CertificateVerifier.sol:23",
+        "version": {
+          "withMetadata": "dc60f93a5d085773321df63cb19fa42472ab42254fd0d4c9209eb64a54939667",
+          "withoutMetadata": "dc60f93a5d085773321df63cb19fa42472ab42254fd0d4c9209eb64a54939667",
+          "linkedWithoutMetadata": "dc60f93a5d085773321df63cb19fa42472ab42254fd0d4c9209eb64a54939667"
+        },
+        "inherit": [],
+        "libraries": [],
+        "methods": [
+          "verifyProof(uint256[2],uint256[2][2],uint256[2],uint256[4])"
+        ],
+        "linkReferences": [],
+        "errors": [],
+        "layout": {
+          "storage": [],
+          "types": {},
+          "layoutVersion": "1.2",
+          "flat": false,
+          "namespaces": {}
+        },
+        "solcVersion": "0.8.17"
+      },
+      "contracts/IVerifier.sol:IVerifier": {
+        "src": "contracts/IVerifier.sol:16",
+        "inherit": [],
+        "libraries": [],
+        "methods": [
+          "verifyProof(uint256[2],uint256[2][2],uint256[2],uint256[4])"
+        ],
+        "linkReferences": [],
+        "errors": [],
+        "layout": {
+          "storage": [],
+          "types": {},
+          "layoutVersion": "1.2",
+          "flat": false,
+          "namespaces": {}
+        },
+        "solcVersion": "0.8.17"
+      },
+      "contracts/PlaceholderVerifier.sol:PlaceholderVerifier": {
+        "src": "contracts/PlaceholderVerifier.sol:18",
+        "version": {
+          "withMetadata": "4bb9c972d7a5ab21eb4342dd09ceea792905f30aa90317f1d1b372264f53a3cf",
+          "withoutMetadata": "4bb9c972d7a5ab21eb4342dd09ceea792905f30aa90317f1d1b372264f53a3cf",
+          "linkedWithoutMetadata": "4bb9c972d7a5ab21eb4342dd09ceea792905f30aa90317f1d1b372264f53a3cf"
+        },
+        "inherit": [
+          "contracts/IVerifier.sol:IVerifier"
+        ],
+        "libraries": [],
+        "methods": [
+          "()",
+          "verifyProof(uint256[2],uint256[2][2],uint256[2],uint256[4])",
+          "getVersion()"
+        ],
+        "linkReferences": [],
+        "errors": [
+          {
+            "kind": "constructor",
+            "contract": "PlaceholderVerifier",
+            "src": "contracts/PlaceholderVerifier.sol:19"
+          }
+        ],
+        "layout": {
+          "storage": [],
+          "types": {},
+          "layoutVersion": "1.2",
+          "flat": false,
+          "namespaces": {}
+        },
+        "solcVersion": "0.8.17"
+      },
+      "contracts/ZKCertificateSystem.sol:ZKCertificateSystem": {
+        "src": "contracts/ZKCertificateSystem.sol:29",
+        "version": {
+          "withMetadata": "e52b5a9d740dc06be974731e2529fe0cd1a4bd1d6ebd07a1994337b853112ad7",
+          "withoutMetadata": "e52b5a9d740dc06be974731e2529fe0cd1a4bd1d6ebd07a1994337b853112ad7",
+          "linkedWithoutMetadata": "e52b5a9d740dc06be974731e2529fe0cd1a4bd1d6ebd07a1994337b853112ad7"
+        },
+        "inherit": [
+          "contracts/CertificateRegistry.sol:CertificateRegistry",
+          "@openzeppelin/contracts/security/ReentrancyGuard.sol:ReentrancyGuard",
+          "@openzeppelin/contracts/access/Ownable.sol:Ownable",
+          "@openzeppelin/contracts/utils/Context.sol:Context"
+        ],
+        "libraries": [],
+        "methods": [
+          "(address)",
+          "verifyAcademicAchievement((uint256[2],uint256[2][2],uint256[2]),uint256,uint256,uint256,bool)",
+          "verifyBasicCertificate((uint256[2],uint256[2][2],uint256[2]),uint256,uint256)",
+          "getBatchVerificationCount(uint256)"
+        ],
+        "linkReferences": [],
+        "errors": [
+          {
+            "kind": "constructor",
+            "contract": "ZKCertificateSystem",
+            "src": "contracts/ZKCertificateSystem.sol:40"
+          },
+          {
+            "kind": "state-variable-immutable",
+            "name": "verifier",
+            "src": "contracts/ZKCertificateSystem.sol:31"
+          }
+        ],
+        "layout": {
+          "storage": [],
+          "types": {},
+          "layoutVersion": "1.2",
+          "flat": false,
+          "namespaces": {}
+        },
+        "solcVersion": "0.8.17"
+      }
+    },
+    {
+      "@openzeppelin/contracts/access/Ownable.sol:Ownable": {
+        "src": "@openzeppelin/contracts/access/Ownable.sol:20",
+        "inherit": [
+          "@openzeppelin/contracts/utils/Context.sol:Context"
+        ],
+        "libraries": [],
+        "methods": [
+          "owner()",
+          "renounceOwnership()",
+          "transferOwnership(address)"
+        ],
+        "linkReferences": [],
+        "errors": [
+          {
+            "kind": "constructor",
+            "contract": "Ownable",
+            "src": "@openzeppelin/contracts/access/Ownable.sol:28"
+          }
+        ],
+        "layout": {
+          "storage": [
+            {
+              "contract": "Ownable",
+              "label": "_owner",
+              "type": "t_address",
+              "src": "@openzeppelin/contracts/access/Ownable.sol:21"
+            }
+          ],
+          "types": {
+            "t_address": {
+              "label": "address"
+            }
+          },
+          "layoutVersion": "1.2",
+          "flat": false,
+          "namespaces": {}
+        },
+        "solcVersion": "0.8.17"
+      },
+      "@openzeppelin/contracts/security/ReentrancyGuard.sol:ReentrancyGuard": {
+        "src": "@openzeppelin/contracts/security/ReentrancyGuard.sol:22",
+        "inherit": [],
+        "libraries": [],
+        "methods": [],
+        "linkReferences": [],
+        "errors": [
+          {
+            "kind": "constructor",
+            "contract": "ReentrancyGuard",
+            "src": "@openzeppelin/contracts/security/ReentrancyGuard.sol:39"
+          }
+        ],
+        "layout": {
+          "storage": [
+            {
+              "contract": "ReentrancyGuard",
+              "label": "_status",
+              "type": "t_uint256",
+              "src": "@openzeppelin/contracts/security/ReentrancyGuard.sol:37"
+            }
+          ],
+          "types": {
+            "t_uint256": {
+              "label": "uint256"
+            }
+          },
+          "layoutVersion": "1.2",
+          "flat": false,
+          "namespaces": {}
+        },
+        "solcVersion": "0.8.17"
+      },
+      "@openzeppelin/contracts/utils/Context.sol:Context": {
+        "src": "@openzeppelin/contracts/utils/Context.sol:16",
+        "inherit": [],
+        "libraries": [],
+        "methods": [],
+        "linkReferences": [],
+        "errors": [],
+        "layout": {
+          "storage": [],
+          "types": {},
+          "layoutVersion": "1.2",
+          "flat": false,
+          "namespaces": {}
+        },
+        "solcVersion": "0.8.17"
+      },
+      "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol:MerkleProof": {
+        "src": "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol:20",
+        "version": {
+          "withMetadata": "d4171d70013861514d9e0741abec726b7a97ad86ba2bee64f8c9562a44c9e75e",
+          "withoutMetadata": "d4171d70013861514d9e0741abec726b7a97ad86ba2bee64f8c9562a44c9e75e",
+          "linkedWithoutMetadata": "d4171d70013861514d9e0741abec726b7a97ad86ba2bee64f8c9562a44c9e75e"
+        },
+        "inherit": [],
+        "libraries": [],
+        "methods": [],
+        "linkReferences": [],
+        "errors": [],
+        "layout": {
+          "storage": [],
+          "types": {},
+          "layoutVersion": "1.2",
+          "flat": false,
+          "namespaces": {}
+        },
+        "solcVersion": "0.8.17"
+      },
+      "contracts/CertificateRegistry.sol:CertificateRegistry": {
+        "src": "contracts/CertificateRegistry.sol:13",
+        "version": {
+          "withMetadata": "15610b86c71a5453e58ffd86172bf979133a67245e22620f00a124e67c980342",
+          "withoutMetadata": "15610b86c71a5453e58ffd86172bf979133a67245e22620f00a124e67c980342",
+          "linkedWithoutMetadata": "15610b86c71a5453e58ffd86172bf979133a67245e22620f00a124e67c980342"
+        },
+        "inherit": [
+          "@openzeppelin/contracts/security/ReentrancyGuard.sol:ReentrancyGuard",
+          "@openzeppelin/contracts/access/Ownable.sol:Ownable",
+          "@openzeppelin/contracts/utils/Context.sol:Context"
+        ],
+        "libraries": [],
+        "methods": [
+          "()",
+          "setInstitutionAuthorization(address,bool)",
+          "issueBatch(bytes32,string,string,uint256,uint256)",
+          "verifyCertificate(uint256,bytes32,bytes32[])",
+          "revokeBatch(uint256)",
+          "getBatchInfo(uint256)",
+          "getTotalBatches()"
+        ],
+        "linkReferences": [],
+        "errors": [
+          {
+            "kind": "constructor",
+            "contract": "CertificateRegistry",
+            "src": "contracts/CertificateRegistry.sol:53"
+          }
+        ],
+        "layout": {
+          "storage": [
+            {
+              "contract": "CertificateRegistry",
+              "label": "batches",
+              "type": "t_mapping(t_uint256,t_struct(BatchInfo)760_storage)",
+              "src": "contracts/CertificateRegistry.sol:25"
+            },
+            {
+              "contract": "CertificateRegistry",
+              "label": "authorizedInstitutions",
+              "type": "t_mapping(t_address,t_bool)",
+              "src": "contracts/CertificateRegistry.sol:28"
+            },
+            {
+              "contract": "CertificateRegistry",
+              "label": "nextBatchId",
+              "type": "t_uint256",
+              "src": "contracts/CertificateRegistry.sol:31"
+            }
+          ],
+          "types": {
+            "t_mapping(t_uint256,t_struct(BatchInfo)760_storage)": {
+              "label": "mapping(uint256 => struct CertificateRegistry.BatchInfo)"
+            },
+            "t_uint256": {
+              "label": "uint256"
+            },
+            "t_struct(BatchInfo)760_storage": {
+              "label": "struct CertificateRegistry.BatchInfo",
+              "members": [
+                {
+                  "label": "merkleRoot",
+                  "type": "t_bytes32"
+                },
+                {
+                  "label": "institutionName",
+                  "type": "t_string_storage"
+                },
+                {
+                  "label": "courseName",
+                  "type": "t_string_storage"
+                },
+                {
+                  "label": "graduationYear",
+                  "type": "t_uint256"
+                },
+                {
+                  "label": "totalStudents",
+                  "type": "t_uint256"
+                },
+                {
+                  "label": "timestamp",
+                  "type": "t_uint256"
+                },
+                {
+                  "label": "isValid",
+                  "type": "t_bool"
+                }
+              ]
+            },
+            "t_bytes32": {
+              "label": "bytes32"
+            },
+            "t_string_storage": {
+              "label": "string"
+            },
+            "t_bool": {
+              "label": "bool"
+            },
+            "t_mapping(t_address,t_bool)": {
+              "label": "mapping(address => bool)"
+            },
+            "t_address": {
+              "label": "address"
+            }
+          },
+          "layoutVersion": "1.2",
+          "flat": false,
+          "namespaces": {}
+        },
+        "solcVersion": "0.8.17"
+      },
+      "contracts/CertificateVerifier.sol:Groth16Verifier": {
+        "src": "contracts/CertificateVerifier.sol:23",
+        "version": {
+          "withMetadata": "dc60f93a5d085773321df63cb19fa42472ab42254fd0d4c9209eb64a54939667",
+          "withoutMetadata": "dc60f93a5d085773321df63cb19fa42472ab42254fd0d4c9209eb64a54939667",
+          "linkedWithoutMetadata": "dc60f93a5d085773321df63cb19fa42472ab42254fd0d4c9209eb64a54939667"
+        },
+        "inherit": [],
+        "libraries": [],
+        "methods": [
+          "verifyProof(uint256[2],uint256[2][2],uint256[2],uint256[4])"
+        ],
+        "linkReferences": [],
+        "errors": [],
+        "layout": {
+          "storage": [],
+          "types": {},
+          "layoutVersion": "1.2",
+          "flat": false,
+          "namespaces": {}
+        },
+        "solcVersion": "0.8.17"
+      },
+      "contracts/IVerifier.sol:IVerifier": {
+        "src": "contracts/IVerifier.sol:16",
+        "inherit": [],
+        "libraries": [],
+        "methods": [
+          "verifyProof(uint256[2],uint256[2][2],uint256[2],uint256[4])"
+        ],
+        "linkReferences": [],
+        "errors": [],
+        "layout": {
+          "storage": [],
+          "types": {},
+          "layoutVersion": "1.2",
+          "flat": false,
+          "namespaces": {}
+        },
+        "solcVersion": "0.8.17"
+      },
+      "contracts/PlaceholderVerifier.sol:PlaceholderVerifier": {
+        "src": "contracts/PlaceholderVerifier.sol:18",
+        "version": {
+          "withMetadata": "4bb9c972d7a5ab21eb4342dd09ceea792905f30aa90317f1d1b372264f53a3cf",
+          "withoutMetadata": "4bb9c972d7a5ab21eb4342dd09ceea792905f30aa90317f1d1b372264f53a3cf",
+          "linkedWithoutMetadata": "4bb9c972d7a5ab21eb4342dd09ceea792905f30aa90317f1d1b372264f53a3cf"
+        },
+        "inherit": [
+          "contracts/IVerifier.sol:IVerifier"
+        ],
+        "libraries": [],
+        "methods": [
+          "()",
+          "verifyProof(uint256[2],uint256[2][2],uint256[2],uint256[4])",
+          "getVersion()"
+        ],
+        "linkReferences": [],
+        "errors": [
+          {
+            "kind": "constructor",
+            "contract": "PlaceholderVerifier",
+            "src": "contracts/PlaceholderVerifier.sol:19"
+          }
+        ],
+        "layout": {
+          "storage": [],
+          "types": {},
+          "layoutVersion": "1.2",
+          "flat": false,
+          "namespaces": {}
+        },
+        "solcVersion": "0.8.17"
+      },
+      "contracts/ZKCertificateSystem.sol:ZKCertificateSystem": {
+        "src": "contracts/ZKCertificateSystem.sol:29",
+        "version": {
+          "withMetadata": "e52b5a9d740dc06be974731e2529fe0cd1a4bd1d6ebd07a1994337b853112ad7",
+          "withoutMetadata": "e52b5a9d740dc06be974731e2529fe0cd1a4bd1d6ebd07a1994337b853112ad7",
+          "linkedWithoutMetadata": "e52b5a9d740dc06be974731e2529fe0cd1a4bd1d6ebd07a1994337b853112ad7"
+        },
+        "inherit": [
+          "contracts/CertificateRegistry.sol:CertificateRegistry",
+          "@openzeppelin/contracts/security/ReentrancyGuard.sol:ReentrancyGuard",
+          "@openzeppelin/contracts/access/Ownable.sol:Ownable",
+          "@openzeppelin/contracts/utils/Context.sol:Context"
+        ],
+        "libraries": [],
+        "methods": [
+          "(address)",
+          "verifyAcademicAchievement((uint256[2],uint256[2][2],uint256[2]),uint256,uint256,uint256,bool)",
+          "verifyBasicCertificate((uint256[2],uint256[2][2],uint256[2]),uint256,uint256)",
+          "getBatchVerificationCount(uint256)"
+        ],
+        "linkReferences": [],
+        "errors": [
+          {
+            "kind": "constructor",
+            "contract": "ZKCertificateSystem",
+            "src": "contracts/ZKCertificateSystem.sol:40"
+          },
+          {
+            "kind": "state-variable-immutable",
+            "name": "verifier",
+            "src": "contracts/ZKCertificateSystem.sol:31"
+          }
+        ],
+        "layout": {
+          "storage": [],
+          "types": {},
+          "layoutVersion": "1.2",
+          "flat": false,
+          "namespaces": {}
+        },
+        "solcVersion": "0.8.17"
+      }
+    },
+    {
+      "@openzeppelin/contracts/access/Ownable.sol:Ownable": {
+        "src": "@openzeppelin/contracts/access/Ownable.sol:20",
+        "inherit": [
+          "@openzeppelin/contracts/utils/Context.sol:Context"
+        ],
+        "libraries": [],
+        "methods": [
+          "owner()",
+          "renounceOwnership()",
+          "transferOwnership(address)"
+        ],
+        "linkReferences": [],
+        "errors": [
+          {
+            "kind": "constructor",
+            "contract": "Ownable",
+            "src": "@openzeppelin/contracts/access/Ownable.sol:28"
+          }
+        ],
+        "layout": {
+          "storage": [
+            {
+              "contract": "Ownable",
+              "label": "_owner",
+              "type": "t_address",
+              "src": "@openzeppelin/contracts/access/Ownable.sol:21"
+            }
+          ],
+          "types": {
+            "t_address": {
+              "label": "address"
+            }
+          },
+          "layoutVersion": "1.2",
+          "flat": false,
+          "namespaces": {}
+        },
+        "solcVersion": "0.8.17"
+      },
+      "@openzeppelin/contracts/security/ReentrancyGuard.sol:ReentrancyGuard": {
+        "src": "@openzeppelin/contracts/security/ReentrancyGuard.sol:22",
+        "inherit": [],
+        "libraries": [],
+        "methods": [],
+        "linkReferences": [],
+        "errors": [
+          {
+            "kind": "constructor",
+            "contract": "ReentrancyGuard",
+            "src": "@openzeppelin/contracts/security/ReentrancyGuard.sol:39"
+          }
+        ],
+        "layout": {
+          "storage": [
+            {
+              "contract": "ReentrancyGuard",
+              "label": "_status",
+              "type": "t_uint256",
+              "src": "@openzeppelin/contracts/security/ReentrancyGuard.sol:37"
+            }
+          ],
+          "types": {
+            "t_uint256": {
+              "label": "uint256"
+            }
+          },
+          "layoutVersion": "1.2",
+          "flat": false,
+          "namespaces": {}
+        },
+        "solcVersion": "0.8.17"
+      },
+      "@openzeppelin/contracts/utils/Context.sol:Context": {
+        "src": "@openzeppelin/contracts/utils/Context.sol:16",
+        "inherit": [],
+        "libraries": [],
+        "methods": [],
+        "linkReferences": [],
+        "errors": [],
+        "layout": {
+          "storage": [],
+          "types": {},
+          "layoutVersion": "1.2",
+          "flat": false,
+          "namespaces": {}
+        },
+        "solcVersion": "0.8.17"
+      },
+      "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol:MerkleProof": {
+        "src": "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol:20",
+        "version": {
+          "withMetadata": "7e55259eb2c48913baf4a4907147a43b5a1be3338fab44d4f344dc0d67cf35d0",
+          "withoutMetadata": "7e55259eb2c48913baf4a4907147a43b5a1be3338fab44d4f344dc0d67cf35d0",
+          "linkedWithoutMetadata": "7e55259eb2c48913baf4a4907147a43b5a1be3338fab44d4f344dc0d67cf35d0"
+        },
+        "inherit": [],
+        "libraries": [],
+        "methods": [],
+        "linkReferences": [],
+        "errors": [],
+        "layout": {
+          "storage": [],
+          "types": {},
+          "layoutVersion": "1.2",
+          "flat": false,
+          "namespaces": {}
+        },
+        "solcVersion": "0.8.17"
+      },
+      "contracts/CertificateRegistry.sol:CertificateRegistry": {
+        "src": "contracts/CertificateRegistry.sol:13",
+        "version": {
+          "withMetadata": "c174b418d3af5615e6ca55218bbf354877a724cccab5fbcad3f3deefb86e32f6",
+          "withoutMetadata": "c174b418d3af5615e6ca55218bbf354877a724cccab5fbcad3f3deefb86e32f6",
+          "linkedWithoutMetadata": "c174b418d3af5615e6ca55218bbf354877a724cccab5fbcad3f3deefb86e32f6"
+        },
+        "inherit": [
+          "@openzeppelin/contracts/security/ReentrancyGuard.sol:ReentrancyGuard",
+          "@openzeppelin/contracts/access/Ownable.sol:Ownable",
+          "@openzeppelin/contracts/utils/Context.sol:Context"
+        ],
+        "libraries": [],
+        "methods": [
+          "()",
+          "setInstitutionAuthorization(address,bool)",
+          "issueBatch(bytes32,string,string,uint256,uint256)",
+          "verifyCertificate(uint256,bytes32,bytes32[])",
+          "revokeBatch(uint256)",
+          "getBatchInfo(uint256)",
+          "getTotalBatches()"
+        ],
+        "linkReferences": [],
+        "errors": [
+          {
+            "kind": "constructor",
+            "contract": "CertificateRegistry",
+            "src": "contracts/CertificateRegistry.sol:53"
+          }
+        ],
+        "layout": {
+          "storage": [
+            {
+              "contract": "CertificateRegistry",
+              "label": "batches",
+              "type": "t_mapping(t_uint256,t_struct(BatchInfo)760_storage)",
+              "src": "contracts/CertificateRegistry.sol:25"
+            },
+            {
+              "contract": "CertificateRegistry",
+              "label": "authorizedInstitutions",
+              "type": "t_mapping(t_address,t_bool)",
+              "src": "contracts/CertificateRegistry.sol:28"
+            },
+            {
+              "contract": "CertificateRegistry",
+              "label": "nextBatchId",
+              "type": "t_uint256",
+              "src": "contracts/CertificateRegistry.sol:31"
+            }
+          ],
+          "types": {
+            "t_mapping(t_uint256,t_struct(BatchInfo)760_storage)": {
+              "label": "mapping(uint256 => struct CertificateRegistry.BatchInfo)"
+            },
+            "t_uint256": {
+              "label": "uint256"
+            },
+            "t_struct(BatchInfo)760_storage": {
+              "label": "struct CertificateRegistry.BatchInfo",
+              "members": [
+                {
+                  "label": "merkleRoot",
+                  "type": "t_bytes32"
+                },
+                {
+                  "label": "institutionName",
+                  "type": "t_string_storage"
+                },
+                {
+                  "label": "courseName",
+                  "type": "t_string_storage"
+                },
+                {
+                  "label": "graduationYear",
+                  "type": "t_uint256"
+                },
+                {
+                  "label": "totalStudents",
+                  "type": "t_uint256"
+                },
+                {
+                  "label": "timestamp",
+                  "type": "t_uint256"
+                },
+                {
+                  "label": "isValid",
+                  "type": "t_bool"
+                }
+              ]
+            },
+            "t_bytes32": {
+              "label": "bytes32"
+            },
+            "t_string_storage": {
+              "label": "string"
+            },
+            "t_bool": {
+              "label": "bool"
+            },
+            "t_mapping(t_address,t_bool)": {
+              "label": "mapping(address => bool)"
+            },
+            "t_address": {
+              "label": "address"
+            }
+          },
+          "layoutVersion": "1.2",
+          "flat": false,
+          "namespaces": {}
+        },
+        "solcVersion": "0.8.17"
+      },
+      "contracts/CertificateVerifier.sol:Groth16Verifier": {
+        "src": "contracts/CertificateVerifier.sol:23",
+        "version": {
+          "withMetadata": "664f39f2f8f22c1744c84384752a5a7c2f00341d097ed8db45d1ed47952475ca",
+          "withoutMetadata": "664f39f2f8f22c1744c84384752a5a7c2f00341d097ed8db45d1ed47952475ca",
+          "linkedWithoutMetadata": "664f39f2f8f22c1744c84384752a5a7c2f00341d097ed8db45d1ed47952475ca"
+        },
+        "inherit": [],
+        "libraries": [],
+        "methods": [
+          "verifyProof(uint256[2],uint256[2][2],uint256[2],uint256[4])"
+        ],
+        "linkReferences": [],
+        "errors": [],
+        "layout": {
+          "storage": [],
+          "types": {},
+          "layoutVersion": "1.2",
+          "flat": false,
+          "namespaces": {}
+        },
+        "solcVersion": "0.8.17"
+      },
+      "contracts/IVerifier.sol:IVerifier": {
+        "src": "contracts/IVerifier.sol:16",
+        "inherit": [],
+        "libraries": [],
+        "methods": [
+          "verifyProof(uint256[2],uint256[2][2],uint256[2],uint256[4])"
+        ],
+        "linkReferences": [],
+        "errors": [],
+        "layout": {
+          "storage": [],
+          "types": {},
+          "layoutVersion": "1.2",
+          "flat": false,
+          "namespaces": {}
+        },
+        "solcVersion": "0.8.17"
+      },
+      "contracts/PlaceholderVerifier.sol:PlaceholderVerifier": {
+        "src": "contracts/PlaceholderVerifier.sol:18",
+        "version": {
+          "withMetadata": "100b4591d5b8c594b5356e25012578eaf9f75e6d32f717f5cb52aaf36f440f8e",
+          "withoutMetadata": "100b4591d5b8c594b5356e25012578eaf9f75e6d32f717f5cb52aaf36f440f8e",
+          "linkedWithoutMetadata": "100b4591d5b8c594b5356e25012578eaf9f75e6d32f717f5cb52aaf36f440f8e"
+        },
+        "inherit": [
+          "contracts/IVerifier.sol:IVerifier"
+        ],
+        "libraries": [],
+        "methods": [
+          "()",
+          "verifyProof(uint256[2],uint256[2][2],uint256[2],uint256[4])",
+          "getVersion()"
+        ],
+        "linkReferences": [],
+        "errors": [
+          {
+            "kind": "constructor",
+            "contract": "PlaceholderVerifier",
+            "src": "contracts/PlaceholderVerifier.sol:19"
+          }
+        ],
+        "layout": {
+          "storage": [],
+          "types": {},
+          "layoutVersion": "1.2",
+          "flat": false,
+          "namespaces": {}
+        },
+        "solcVersion": "0.8.17"
+      },
+      "contracts/ZKCertificateSystem.sol:ZKCertificateSystem": {
+        "src": "contracts/ZKCertificateSystem.sol:29",
+        "version": {
+          "withMetadata": "934cdb4569bbb8be6c7a683d8e2ef42a32ec85d25c8c3ddb364940146b1adb55",
+          "withoutMetadata": "934cdb4569bbb8be6c7a683d8e2ef42a32ec85d25c8c3ddb364940146b1adb55",
+          "linkedWithoutMetadata": "934cdb4569bbb8be6c7a683d8e2ef42a32ec85d25c8c3ddb364940146b1adb55"
+        },
+        "inherit": [
+          "contracts/CertificateRegistry.sol:CertificateRegistry",
+          "@openzeppelin/contracts/security/ReentrancyGuard.sol:ReentrancyGuard",
+          "@openzeppelin/contracts/access/Ownable.sol:Ownable",
+          "@openzeppelin/contracts/utils/Context.sol:Context"
+        ],
+        "libraries": [],
+        "methods": [
+          "(address)",
+          "verifyAcademicAchievement((uint256[2],uint256[2][2],uint256[2]),uint256,uint256,uint256,bool)",
+          "verifyBasicCertificate((uint256[2],uint256[2][2],uint256[2]),uint256,uint256)",
+          "getBatchVerificationCount(uint256)"
+        ],
+        "linkReferences": [],
+        "errors": [
+          {
+            "kind": "constructor",
+            "contract": "ZKCertificateSystem",
+            "src": "contracts/ZKCertificateSystem.sol:40"
+          },
+          {
+            "kind": "state-variable-immutable",
+            "name": "verifier",
+            "src": "contracts/ZKCertificateSystem.sol:31"
+          }
+        ],
+        "layout": {
+          "storage": [],
+          "types": {},
+          "layoutVersion": "1.2",
+          "flat": false,
+          "namespaces": {}
+        },
+        "solcVersion": "0.8.17"
+      }
+    },
+    {
+      "@openzeppelin/contracts/access/Ownable.sol:Ownable": {
+        "src": "@openzeppelin/contracts/access/Ownable.sol:20",
+        "inherit": [
+          "@openzeppelin/contracts/utils/Context.sol:Context"
+        ],
+        "libraries": [],
+        "methods": [
+          "owner()",
+          "renounceOwnership()",
+          "transferOwnership(address)"
+        ],
+        "linkReferences": [],
+        "errors": [
+          {
+            "kind": "constructor",
+            "contract": "Ownable",
+            "src": "@openzeppelin/contracts/access/Ownable.sol:28"
+          }
+        ],
+        "layout": {
+          "storage": [
+            {
+              "contract": "Ownable",
+              "label": "_owner",
+              "type": "t_address",
+              "src": "@openzeppelin/contracts/access/Ownable.sol:21"
+            }
+          ],
+          "types": {
+            "t_address": {
+              "label": "address"
+            }
+          },
+          "layoutVersion": "1.2",
+          "flat": false,
+          "namespaces": {}
+        },
+        "solcVersion": "0.8.17"
+      },
+      "@openzeppelin/contracts/security/ReentrancyGuard.sol:ReentrancyGuard": {
+        "src": "@openzeppelin/contracts/security/ReentrancyGuard.sol:22",
+        "inherit": [],
+        "libraries": [],
+        "methods": [],
+        "linkReferences": [],
+        "errors": [
+          {
+            "kind": "constructor",
+            "contract": "ReentrancyGuard",
+            "src": "@openzeppelin/contracts/security/ReentrancyGuard.sol:39"
+          }
+        ],
+        "layout": {
+          "storage": [
+            {
+              "contract": "ReentrancyGuard",
+              "label": "_status",
+              "type": "t_uint256",
+              "src": "@openzeppelin/contracts/security/ReentrancyGuard.sol:37"
+            }
+          ],
+          "types": {
+            "t_uint256": {
+              "label": "uint256"
+            }
+          },
+          "layoutVersion": "1.2",
+          "flat": false,
+          "namespaces": {}
+        },
+        "solcVersion": "0.8.17"
+      },
+      "@openzeppelin/contracts/utils/Context.sol:Context": {
+        "src": "@openzeppelin/contracts/utils/Context.sol:16",
+        "inherit": [],
+        "libraries": [],
+        "methods": [],
+        "linkReferences": [],
+        "errors": [],
+        "layout": {
+          "storage": [],
+          "types": {},
+          "layoutVersion": "1.2",
+          "flat": false,
+          "namespaces": {}
+        },
+        "solcVersion": "0.8.17"
+      },
+      "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol:MerkleProof": {
+        "src": "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol:20",
+        "version": {
+          "withMetadata": "7e55259eb2c48913baf4a4907147a43b5a1be3338fab44d4f344dc0d67cf35d0",
+          "withoutMetadata": "7e55259eb2c48913baf4a4907147a43b5a1be3338fab44d4f344dc0d67cf35d0",
+          "linkedWithoutMetadata": "7e55259eb2c48913baf4a4907147a43b5a1be3338fab44d4f344dc0d67cf35d0"
+        },
+        "inherit": [],
+        "libraries": [],
+        "methods": [],
+        "linkReferences": [],
+        "errors": [],
+        "layout": {
+          "storage": [],
+          "types": {},
+          "layoutVersion": "1.2",
+          "flat": false,
+          "namespaces": {}
+        },
+        "solcVersion": "0.8.17"
+      },
+      "contracts/CertificateRegistry.sol:CertificateRegistry": {
+        "src": "contracts/CertificateRegistry.sol:13",
+        "version": {
+          "withMetadata": "c174b418d3af5615e6ca55218bbf354877a724cccab5fbcad3f3deefb86e32f6",
+          "withoutMetadata": "c174b418d3af5615e6ca55218bbf354877a724cccab5fbcad3f3deefb86e32f6",
+          "linkedWithoutMetadata": "c174b418d3af5615e6ca55218bbf354877a724cccab5fbcad3f3deefb86e32f6"
+        },
+        "inherit": [
+          "@openzeppelin/contracts/security/ReentrancyGuard.sol:ReentrancyGuard",
+          "@openzeppelin/contracts/access/Ownable.sol:Ownable",
+          "@openzeppelin/contracts/utils/Context.sol:Context"
+        ],
+        "libraries": [],
+        "methods": [
+          "()",
+          "setInstitutionAuthorization(address,bool)",
+          "issueBatch(bytes32,string,string,uint256,uint256)",
+          "verifyCertificate(uint256,bytes32,bytes32[])",
+          "revokeBatch(uint256)",
+          "getBatchInfo(uint256)",
+          "getTotalBatches()"
+        ],
+        "linkReferences": [],
+        "errors": [
+          {
+            "kind": "constructor",
+            "contract": "CertificateRegistry",
+            "src": "contracts/CertificateRegistry.sol:53"
+          }
+        ],
+        "layout": {
+          "storage": [
+            {
+              "contract": "CertificateRegistry",
+              "label": "batches",
+              "type": "t_mapping(t_uint256,t_struct(BatchInfo)760_storage)",
+              "src": "contracts/CertificateRegistry.sol:25"
+            },
+            {
+              "contract": "CertificateRegistry",
+              "label": "authorizedInstitutions",
+              "type": "t_mapping(t_address,t_bool)",
+              "src": "contracts/CertificateRegistry.sol:28"
+            },
+            {
+              "contract": "CertificateRegistry",
+              "label": "nextBatchId",
+              "type": "t_uint256",
+              "src": "contracts/CertificateRegistry.sol:31"
+            }
+          ],
+          "types": {
+            "t_mapping(t_uint256,t_struct(BatchInfo)760_storage)": {
+              "label": "mapping(uint256 => struct CertificateRegistry.BatchInfo)"
+            },
+            "t_uint256": {
+              "label": "uint256"
+            },
+            "t_struct(BatchInfo)760_storage": {
+              "label": "struct CertificateRegistry.BatchInfo",
+              "members": [
+                {
+                  "label": "merkleRoot",
+                  "type": "t_bytes32"
+                },
+                {
+                  "label": "institutionName",
+                  "type": "t_string_storage"
+                },
+                {
+                  "label": "courseName",
+                  "type": "t_string_storage"
+                },
+                {
+                  "label": "graduationYear",
+                  "type": "t_uint256"
+                },
+                {
+                  "label": "totalStudents",
+                  "type": "t_uint256"
+                },
+                {
+                  "label": "timestamp",
+                  "type": "t_uint256"
+                },
+                {
+                  "label": "isValid",
+                  "type": "t_bool"
+                }
+              ]
+            },
+            "t_bytes32": {
+              "label": "bytes32"
+            },
+            "t_string_storage": {
+              "label": "string"
+            },
+            "t_bool": {
+              "label": "bool"
+            },
+            "t_mapping(t_address,t_bool)": {
+              "label": "mapping(address => bool)"
+            },
+            "t_address": {
+              "label": "address"
+            }
+          },
+          "layoutVersion": "1.2",
+          "flat": false,
+          "namespaces": {}
+        },
+        "solcVersion": "0.8.17"
+      },
+      "contracts/CertificateVerifier.sol:Groth16Verifier": {
+        "src": "contracts/CertificateVerifier.sol:23",
+        "version": {
+          "withMetadata": "664f39f2f8f22c1744c84384752a5a7c2f00341d097ed8db45d1ed47952475ca",
+          "withoutMetadata": "664f39f2f8f22c1744c84384752a5a7c2f00341d097ed8db45d1ed47952475ca",
+          "linkedWithoutMetadata": "664f39f2f8f22c1744c84384752a5a7c2f00341d097ed8db45d1ed47952475ca"
+        },
+        "inherit": [],
+        "libraries": [],
+        "methods": [
+          "verifyProof(uint256[2],uint256[2][2],uint256[2],uint256[4])"
+        ],
+        "linkReferences": [],
+        "errors": [],
+        "layout": {
+          "storage": [],
+          "types": {},
+          "layoutVersion": "1.2",
+          "flat": false,
+          "namespaces": {}
+        },
+        "solcVersion": "0.8.17"
+      },
+      "contracts/IVerifier.sol:IVerifier": {
+        "src": "contracts/IVerifier.sol:16",
+        "inherit": [],
+        "libraries": [],
+        "methods": [
+          "verifyProof(uint256[2],uint256[2][2],uint256[2],uint256[4])"
+        ],
+        "linkReferences": [],
+        "errors": [],
+        "layout": {
+          "storage": [],
+          "types": {},
+          "layoutVersion": "1.2",
+          "flat": false,
+          "namespaces": {}
+        },
+        "solcVersion": "0.8.17"
+      },
+      "contracts/PlaceholderVerifier.sol:PlaceholderVerifier": {
+        "src": "contracts/PlaceholderVerifier.sol:18",
+        "version": {
+          "withMetadata": "100b4591d5b8c594b5356e25012578eaf9f75e6d32f717f5cb52aaf36f440f8e",
+          "withoutMetadata": "100b4591d5b8c594b5356e25012578eaf9f75e6d32f717f5cb52aaf36f440f8e",
+          "linkedWithoutMetadata": "100b4591d5b8c594b5356e25012578eaf9f75e6d32f717f5cb52aaf36f440f8e"
+        },
+        "inherit": [
+          "contracts/IVerifier.sol:IVerifier"
+        ],
+        "libraries": [],
+        "methods": [
+          "()",
+          "verifyProof(uint256[2],uint256[2][2],uint256[2],uint256[4])",
+          "getVersion()"
+        ],
+        "linkReferences": [],
+        "errors": [
+          {
+            "kind": "constructor",
+            "contract": "PlaceholderVerifier",
+            "src": "contracts/PlaceholderVerifier.sol:19"
+          }
+        ],
+        "layout": {
+          "storage": [],
+          "types": {},
+          "layoutVersion": "1.2",
+          "flat": false,
+          "namespaces": {}
+        },
+        "solcVersion": "0.8.17"
+      },
+      "contracts/ZKCertificateSystem.sol:ZKCertificateSystem": {
+        "src": "contracts/ZKCertificateSystem.sol:29",
+        "version": {
+          "withMetadata": "934cdb4569bbb8be6c7a683d8e2ef42a32ec85d25c8c3ddb364940146b1adb55",
+          "withoutMetadata": "934cdb4569bbb8be6c7a683d8e2ef42a32ec85d25c8c3ddb364940146b1adb55",
+          "linkedWithoutMetadata": "934cdb4569bbb8be6c7a683d8e2ef42a32ec85d25c8c3ddb364940146b1adb55"
+        },
+        "inherit": [
+          "contracts/CertificateRegistry.sol:CertificateRegistry",
+          "@openzeppelin/contracts/security/ReentrancyGuard.sol:ReentrancyGuard",
+          "@openzeppelin/contracts/access/Ownable.sol:Ownable",
+          "@openzeppelin/contracts/utils/Context.sol:Context"
+        ],
+        "libraries": [],
+        "methods": [
+          "(address)",
+          "verifyAcademicAchievement((uint256[2],uint256[2][2],uint256[2]),uint256,uint256,uint256,bool)",
+          "verifyBasicCertificate((uint256[2],uint256[2][2],uint256[2]),uint256,uint256)",
+          "getBatchVerificationCount(uint256)"
+        ],
+        "linkReferences": [],
+        "errors": [
+          {
+            "kind": "constructor",
+            "contract": "ZKCertificateSystem",
+            "src": "contracts/ZKCertificateSystem.sol:40"
+          },
+          {
+            "kind": "state-variable-immutable",
+            "name": "verifier",
+            "src": "contracts/ZKCertificateSystem.sol:31"
+          }
+        ],
+        "layout": {
+          "storage": [],
+          "types": {},
+          "layoutVersion": "1.2",
+          "flat": false,
+          "namespaces": {}
+        },
+        "solcVersion": "0.8.17"
+      }
+    },
+    {
+      "@openzeppelin/contracts/access/Ownable.sol:Ownable": {
+        "src": "@openzeppelin/contracts/access/Ownable.sol:20",
+        "inherit": [
+          "@openzeppelin/contracts/utils/Context.sol:Context"
+        ],
+        "libraries": [],
+        "methods": [
+          "owner()",
+          "renounceOwnership()",
+          "transferOwnership(address)"
+        ],
+        "linkReferences": [],
+        "errors": [
+          {
+            "kind": "constructor",
+            "contract": "Ownable",
+            "src": "@openzeppelin/contracts/access/Ownable.sol:28"
+          }
+        ],
+        "layout": {
+          "storage": [
+            {
+              "contract": "Ownable",
+              "label": "_owner",
+              "type": "t_address",
+              "src": "@openzeppelin/contracts/access/Ownable.sol:21"
+            }
+          ],
+          "types": {
+            "t_address": {
+              "label": "address"
+            }
+          },
+          "layoutVersion": "1.2",
+          "flat": false,
+          "namespaces": {}
+        },
+        "solcVersion": "0.8.17"
+      },
+      "@openzeppelin/contracts/security/ReentrancyGuard.sol:ReentrancyGuard": {
+        "src": "@openzeppelin/contracts/security/ReentrancyGuard.sol:22",
+        "inherit": [],
+        "libraries": [],
+        "methods": [],
+        "linkReferences": [],
+        "errors": [
+          {
+            "kind": "constructor",
+            "contract": "ReentrancyGuard",
+            "src": "@openzeppelin/contracts/security/ReentrancyGuard.sol:39"
+          }
+        ],
+        "layout": {
+          "storage": [
+            {
+              "contract": "ReentrancyGuard",
+              "label": "_status",
+              "type": "t_uint256",
+              "src": "@openzeppelin/contracts/security/ReentrancyGuard.sol:37"
+            }
+          ],
+          "types": {
+            "t_uint256": {
+              "label": "uint256"
+            }
+          },
+          "layoutVersion": "1.2",
+          "flat": false,
+          "namespaces": {}
+        },
+        "solcVersion": "0.8.17"
+      },
+      "@openzeppelin/contracts/utils/Context.sol:Context": {
+        "src": "@openzeppelin/contracts/utils/Context.sol:16",
+        "inherit": [],
+        "libraries": [],
+        "methods": [],
+        "linkReferences": [],
+        "errors": [],
+        "layout": {
+          "storage": [],
+          "types": {},
+          "layoutVersion": "1.2",
+          "flat": false,
+          "namespaces": {}
+        },
+        "solcVersion": "0.8.17"
+      },
+      "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol:MerkleProof": {
+        "src": "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol:20",
+        "version": {
+          "withMetadata": "7e55259eb2c48913baf4a4907147a43b5a1be3338fab44d4f344dc0d67cf35d0",
+          "withoutMetadata": "7e55259eb2c48913baf4a4907147a43b5a1be3338fab44d4f344dc0d67cf35d0",
+          "linkedWithoutMetadata": "7e55259eb2c48913baf4a4907147a43b5a1be3338fab44d4f344dc0d67cf35d0"
+        },
+        "inherit": [],
+        "libraries": [],
+        "methods": [],
+        "linkReferences": [],
+        "errors": [],
+        "layout": {
+          "storage": [],
+          "types": {},
+          "layoutVersion": "1.2",
+          "flat": false,
+          "namespaces": {}
+        },
+        "solcVersion": "0.8.17"
+      },
+      "contracts/CertificateRegistry.sol:CertificateRegistry": {
+        "src": "contracts/CertificateRegistry.sol:13",
+        "version": {
+          "withMetadata": "c174b418d3af5615e6ca55218bbf354877a724cccab5fbcad3f3deefb86e32f6",
+          "withoutMetadata": "c174b418d3af5615e6ca55218bbf354877a724cccab5fbcad3f3deefb86e32f6",
+          "linkedWithoutMetadata": "c174b418d3af5615e6ca55218bbf354877a724cccab5fbcad3f3deefb86e32f6"
+        },
+        "inherit": [
+          "@openzeppelin/contracts/security/ReentrancyGuard.sol:ReentrancyGuard",
+          "@openzeppelin/contracts/access/Ownable.sol:Ownable",
+          "@openzeppelin/contracts/utils/Context.sol:Context"
+        ],
+        "libraries": [],
+        "methods": [
+          "()",
+          "setInstitutionAuthorization(address,bool)",
+          "issueBatch(bytes32,string,string,uint256,uint256)",
+          "verifyCertificate(uint256,bytes32,bytes32[])",
+          "revokeBatch(uint256)",
+          "getBatchInfo(uint256)",
+          "getTotalBatches()"
+        ],
+        "linkReferences": [],
+        "errors": [
+          {
+            "kind": "constructor",
+            "contract": "CertificateRegistry",
+            "src": "contracts/CertificateRegistry.sol:53"
+          }
+        ],
+        "layout": {
+          "storage": [
+            {
+              "contract": "CertificateRegistry",
+              "label": "batches",
+              "type": "t_mapping(t_uint256,t_struct(BatchInfo)760_storage)",
+              "src": "contracts/CertificateRegistry.sol:25"
+            },
+            {
+              "contract": "CertificateRegistry",
+              "label": "authorizedInstitutions",
+              "type": "t_mapping(t_address,t_bool)",
+              "src": "contracts/CertificateRegistry.sol:28"
+            },
+            {
+              "contract": "CertificateRegistry",
+              "label": "nextBatchId",
+              "type": "t_uint256",
+              "src": "contracts/CertificateRegistry.sol:31"
+            }
+          ],
+          "types": {
+            "t_mapping(t_uint256,t_struct(BatchInfo)760_storage)": {
+              "label": "mapping(uint256 => struct CertificateRegistry.BatchInfo)"
+            },
+            "t_uint256": {
+              "label": "uint256"
+            },
+            "t_struct(BatchInfo)760_storage": {
+              "label": "struct CertificateRegistry.BatchInfo",
+              "members": [
+                {
+                  "label": "merkleRoot",
+                  "type": "t_bytes32"
+                },
+                {
+                  "label": "institutionName",
+                  "type": "t_string_storage"
+                },
+                {
+                  "label": "courseName",
+                  "type": "t_string_storage"
+                },
+                {
+                  "label": "graduationYear",
+                  "type": "t_uint256"
+                },
+                {
+                  "label": "totalStudents",
+                  "type": "t_uint256"
+                },
+                {
+                  "label": "timestamp",
+                  "type": "t_uint256"
+                },
+                {
+                  "label": "isValid",
+                  "type": "t_bool"
+                }
+              ]
+            },
+            "t_bytes32": {
+              "label": "bytes32"
+            },
+            "t_string_storage": {
+              "label": "string"
+            },
+            "t_bool": {
+              "label": "bool"
+            },
+            "t_mapping(t_address,t_bool)": {
+              "label": "mapping(address => bool)"
+            },
+            "t_address": {
+              "label": "address"
+            }
+          },
+          "layoutVersion": "1.2",
+          "flat": false,
+          "namespaces": {}
+        },
+        "solcVersion": "0.8.17"
+      },
+      "contracts/CertificateVerifier.sol:Groth16Verifier": {
+        "src": "contracts/CertificateVerifier.sol:23",
+        "version": {
+          "withMetadata": "664f39f2f8f22c1744c84384752a5a7c2f00341d097ed8db45d1ed47952475ca",
+          "withoutMetadata": "664f39f2f8f22c1744c84384752a5a7c2f00341d097ed8db45d1ed47952475ca",
+          "linkedWithoutMetadata": "664f39f2f8f22c1744c84384752a5a7c2f00341d097ed8db45d1ed47952475ca"
+        },
+        "inherit": [],
+        "libraries": [],
+        "methods": [
+          "verifyProof(uint256[2],uint256[2][2],uint256[2],uint256[4])"
+        ],
+        "linkReferences": [],
+        "errors": [],
+        "layout": {
+          "storage": [],
+          "types": {},
+          "layoutVersion": "1.2",
+          "flat": false,
+          "namespaces": {}
+        },
+        "solcVersion": "0.8.17"
+      },
+      "contracts/IVerifier.sol:IVerifier": {
+        "src": "contracts/IVerifier.sol:16",
+        "inherit": [],
+        "libraries": [],
+        "methods": [
+          "verifyProof(uint256[2],uint256[2][2],uint256[2],uint256[4])"
+        ],
+        "linkReferences": [],
+        "errors": [],
+        "layout": {
+          "storage": [],
+          "types": {},
+          "layoutVersion": "1.2",
+          "flat": false,
+          "namespaces": {}
+        },
+        "solcVersion": "0.8.17"
+      },
+      "contracts/PlaceholderVerifier.sol:PlaceholderVerifier": {
+        "src": "contracts/PlaceholderVerifier.sol:18",
+        "version": {
+          "withMetadata": "100b4591d5b8c594b5356e25012578eaf9f75e6d32f717f5cb52aaf36f440f8e",
+          "withoutMetadata": "100b4591d5b8c594b5356e25012578eaf9f75e6d32f717f5cb52aaf36f440f8e",
+          "linkedWithoutMetadata": "100b4591d5b8c594b5356e25012578eaf9f75e6d32f717f5cb52aaf36f440f8e"
+        },
+        "inherit": [
+          "contracts/IVerifier.sol:IVerifier"
+        ],
+        "libraries": [],
+        "methods": [
+          "()",
+          "verifyProof(uint256[2],uint256[2][2],uint256[2],uint256[4])",
+          "getVersion()"
+        ],
+        "linkReferences": [],
+        "errors": [
+          {
+            "kind": "constructor",
+            "contract": "PlaceholderVerifier",
+            "src": "contracts/PlaceholderVerifier.sol:19"
+          }
+        ],
+        "layout": {
+          "storage": [],
+          "types": {},
+          "layoutVersion": "1.2",
+          "flat": false,
+          "namespaces": {}
+        },
+        "solcVersion": "0.8.17"
+      },
+      "contracts/ZKCertificateSystem.sol:ZKCertificateSystem": {
+        "src": "contracts/ZKCertificateSystem.sol:29",
+        "version": {
+          "withMetadata": "934cdb4569bbb8be6c7a683d8e2ef42a32ec85d25c8c3ddb364940146b1adb55",
+          "withoutMetadata": "934cdb4569bbb8be6c7a683d8e2ef42a32ec85d25c8c3ddb364940146b1adb55",
+          "linkedWithoutMetadata": "934cdb4569bbb8be6c7a683d8e2ef42a32ec85d25c8c3ddb364940146b1adb55"
+        },
+        "inherit": [
+          "contracts/CertificateRegistry.sol:CertificateRegistry",
+          "@openzeppelin/contracts/security/ReentrancyGuard.sol:ReentrancyGuard",
+          "@openzeppelin/contracts/access/Ownable.sol:Ownable",
+          "@openzeppelin/contracts/utils/Context.sol:Context"
+        ],
+        "libraries": [],
+        "methods": [
+          "(address)",
+          "verifyAcademicAchievement((uint256[2],uint256[2][2],uint256[2]),uint256,uint256,uint256,bool)",
+          "verifyBasicCertificate((uint256[2],uint256[2][2],uint256[2]),uint256,uint256)",
+          "getBatchVerificationCount(uint256)"
+        ],
+        "linkReferences": [],
+        "errors": [
+          {
+            "kind": "constructor",
+            "contract": "ZKCertificateSystem",
+            "src": "contracts/ZKCertificateSystem.sol:40"
+          },
+          {
+            "kind": "state-variable-immutable",
+            "name": "verifier",
+            "src": "contracts/ZKCertificateSystem.sol:31"
+          }
+        ],
+        "layout": {
+          "storage": [],
+          "types": {},
+          "layoutVersion": "1.2",
+          "flat": false,
+          "namespaces": {}
+        },
+        "solcVersion": "0.8.17"
+      }
+    },
+    {
+      "@openzeppelin/contracts/access/Ownable.sol:Ownable": {
+        "src": "@openzeppelin/contracts/access/Ownable.sol:20",
+        "inherit": [
+          "@openzeppelin/contracts/utils/Context.sol:Context"
+        ],
+        "libraries": [],
+        "methods": [
+          "owner()",
+          "renounceOwnership()",
+          "transferOwnership(address)"
+        ],
+        "linkReferences": [],
+        "errors": [
+          {
+            "kind": "constructor",
+            "contract": "Ownable",
+            "src": "@openzeppelin/contracts/access/Ownable.sol:28"
+          }
+        ],
+        "layout": {
+          "storage": [
+            {
+              "contract": "Ownable",
+              "label": "_owner",
+              "type": "t_address",
+              "src": "@openzeppelin/contracts/access/Ownable.sol:21"
+            }
+          ],
+          "types": {
+            "t_address": {
+              "label": "address"
+            }
+          },
+          "layoutVersion": "1.2",
+          "flat": false,
+          "namespaces": {}
+        },
+        "solcVersion": "0.8.17"
+      },
+      "@openzeppelin/contracts/security/ReentrancyGuard.sol:ReentrancyGuard": {
+        "src": "@openzeppelin/contracts/security/ReentrancyGuard.sol:22",
+        "inherit": [],
+        "libraries": [],
+        "methods": [],
+        "linkReferences": [],
+        "errors": [
+          {
+            "kind": "constructor",
+            "contract": "ReentrancyGuard",
+            "src": "@openzeppelin/contracts/security/ReentrancyGuard.sol:39"
+          }
+        ],
+        "layout": {
+          "storage": [
+            {
+              "contract": "ReentrancyGuard",
+              "label": "_status",
+              "type": "t_uint256",
+              "src": "@openzeppelin/contracts/security/ReentrancyGuard.sol:37"
+            }
+          ],
+          "types": {
+            "t_uint256": {
+              "label": "uint256"
+            }
+          },
+          "layoutVersion": "1.2",
+          "flat": false,
+          "namespaces": {}
+        },
+        "solcVersion": "0.8.17"
+      },
+      "@openzeppelin/contracts/utils/Context.sol:Context": {
+        "src": "@openzeppelin/contracts/utils/Context.sol:16",
+        "inherit": [],
+        "libraries": [],
+        "methods": [],
+        "linkReferences": [],
+        "errors": [],
+        "layout": {
+          "storage": [],
+          "types": {},
+          "layoutVersion": "1.2",
+          "flat": false,
+          "namespaces": {}
+        },
+        "solcVersion": "0.8.17"
+      },
+      "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol:MerkleProof": {
+        "src": "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol:20",
+        "version": {
+          "withMetadata": "7e55259eb2c48913baf4a4907147a43b5a1be3338fab44d4f344dc0d67cf35d0",
+          "withoutMetadata": "7e55259eb2c48913baf4a4907147a43b5a1be3338fab44d4f344dc0d67cf35d0",
+          "linkedWithoutMetadata": "7e55259eb2c48913baf4a4907147a43b5a1be3338fab44d4f344dc0d67cf35d0"
+        },
+        "inherit": [],
+        "libraries": [],
+        "methods": [],
+        "linkReferences": [],
+        "errors": [],
+        "layout": {
+          "storage": [],
+          "types": {},
+          "layoutVersion": "1.2",
+          "flat": false,
+          "namespaces": {}
+        },
+        "solcVersion": "0.8.17"
+      },
+      "contracts/CertificateRegistry.sol:CertificateRegistry": {
+        "src": "contracts/CertificateRegistry.sol:13",
+        "version": {
+          "withMetadata": "c174b418d3af5615e6ca55218bbf354877a724cccab5fbcad3f3deefb86e32f6",
+          "withoutMetadata": "c174b418d3af5615e6ca55218bbf354877a724cccab5fbcad3f3deefb86e32f6",
+          "linkedWithoutMetadata": "c174b418d3af5615e6ca55218bbf354877a724cccab5fbcad3f3deefb86e32f6"
+        },
+        "inherit": [
+          "@openzeppelin/contracts/security/ReentrancyGuard.sol:ReentrancyGuard",
+          "@openzeppelin/contracts/access/Ownable.sol:Ownable",
+          "@openzeppelin/contracts/utils/Context.sol:Context"
+        ],
+        "libraries": [],
+        "methods": [
+          "()",
+          "setInstitutionAuthorization(address,bool)",
+          "issueBatch(bytes32,string,string,uint256,uint256)",
+          "verifyCertificate(uint256,bytes32,bytes32[])",
+          "revokeBatch(uint256)",
+          "getBatchInfo(uint256)",
+          "getTotalBatches()"
+        ],
+        "linkReferences": [],
+        "errors": [
+          {
+            "kind": "constructor",
+            "contract": "CertificateRegistry",
+            "src": "contracts/CertificateRegistry.sol:53"
+          }
+        ],
+        "layout": {
+          "storage": [
+            {
+              "contract": "CertificateRegistry",
+              "label": "batches",
+              "type": "t_mapping(t_uint256,t_struct(BatchInfo)760_storage)",
+              "src": "contracts/CertificateRegistry.sol:25"
+            },
+            {
+              "contract": "CertificateRegistry",
+              "label": "authorizedInstitutions",
+              "type": "t_mapping(t_address,t_bool)",
+              "src": "contracts/CertificateRegistry.sol:28"
+            },
+            {
+              "contract": "CertificateRegistry",
+              "label": "nextBatchId",
+              "type": "t_uint256",
+              "src": "contracts/CertificateRegistry.sol:31"
+            }
+          ],
+          "types": {
+            "t_mapping(t_uint256,t_struct(BatchInfo)760_storage)": {
+              "label": "mapping(uint256 => struct CertificateRegistry.BatchInfo)"
+            },
+            "t_uint256": {
+              "label": "uint256"
+            },
+            "t_struct(BatchInfo)760_storage": {
+              "label": "struct CertificateRegistry.BatchInfo",
+              "members": [
+                {
+                  "label": "merkleRoot",
+                  "type": "t_bytes32"
+                },
+                {
+                  "label": "institutionName",
+                  "type": "t_string_storage"
+                },
+                {
+                  "label": "courseName",
+                  "type": "t_string_storage"
+                },
+                {
+                  "label": "graduationYear",
+                  "type": "t_uint256"
+                },
+                {
+                  "label": "totalStudents",
+                  "type": "t_uint256"
+                },
+                {
+                  "label": "timestamp",
+                  "type": "t_uint256"
+                },
+                {
+                  "label": "isValid",
+                  "type": "t_bool"
+                }
+              ]
+            },
+            "t_bytes32": {
+              "label": "bytes32"
+            },
+            "t_string_storage": {
+              "label": "string"
+            },
+            "t_bool": {
+              "label": "bool"
+            },
+            "t_mapping(t_address,t_bool)": {
+              "label": "mapping(address => bool)"
+            },
+            "t_address": {
+              "label": "address"
+            }
+          },
+          "layoutVersion": "1.2",
+          "flat": false,
+          "namespaces": {}
+        },
+        "solcVersion": "0.8.17"
+      },
+      "contracts/CertificateVerifier.sol:Groth16Verifier": {
+        "src": "contracts/CertificateVerifier.sol:23",
+        "version": {
+          "withMetadata": "664f39f2f8f22c1744c84384752a5a7c2f00341d097ed8db45d1ed47952475ca",
+          "withoutMetadata": "664f39f2f8f22c1744c84384752a5a7c2f00341d097ed8db45d1ed47952475ca",
+          "linkedWithoutMetadata": "664f39f2f8f22c1744c84384752a5a7c2f00341d097ed8db45d1ed47952475ca"
+        },
+        "inherit": [],
+        "libraries": [],
+        "methods": [
+          "verifyProof(uint256[2],uint256[2][2],uint256[2],uint256[4])"
+        ],
+        "linkReferences": [],
+        "errors": [],
+        "layout": {
+          "storage": [],
+          "types": {},
+          "layoutVersion": "1.2",
+          "flat": false,
+          "namespaces": {}
+        },
+        "solcVersion": "0.8.17"
+      },
+      "contracts/IVerifier.sol:IVerifier": {
+        "src": "contracts/IVerifier.sol:16",
+        "inherit": [],
+        "libraries": [],
+        "methods": [
+          "verifyProof(uint256[2],uint256[2][2],uint256[2],uint256[4])"
+        ],
+        "linkReferences": [],
+        "errors": [],
+        "layout": {
+          "storage": [],
+          "types": {},
+          "layoutVersion": "1.2",
+          "flat": false,
+          "namespaces": {}
+        },
+        "solcVersion": "0.8.17"
+      },
+      "contracts/PlaceholderVerifier.sol:PlaceholderVerifier": {
+        "src": "contracts/PlaceholderVerifier.sol:18",
+        "version": {
+          "withMetadata": "100b4591d5b8c594b5356e25012578eaf9f75e6d32f717f5cb52aaf36f440f8e",
+          "withoutMetadata": "100b4591d5b8c594b5356e25012578eaf9f75e6d32f717f5cb52aaf36f440f8e",
+          "linkedWithoutMetadata": "100b4591d5b8c594b5356e25012578eaf9f75e6d32f717f5cb52aaf36f440f8e"
+        },
+        "inherit": [
+          "contracts/IVerifier.sol:IVerifier"
+        ],
+        "libraries": [],
+        "methods": [
+          "()",
+          "verifyProof(uint256[2],uint256[2][2],uint256[2],uint256[4])",
+          "getVersion()"
+        ],
+        "linkReferences": [],
+        "errors": [
+          {
+            "kind": "constructor",
+            "contract": "PlaceholderVerifier",
+            "src": "contracts/PlaceholderVerifier.sol:19"
+          }
+        ],
+        "layout": {
+          "storage": [],
+          "types": {},
+          "layoutVersion": "1.2",
+          "flat": false,
+          "namespaces": {}
+        },
+        "solcVersion": "0.8.17"
+      },
+      "contracts/ZKCertificateSystem.sol:ZKCertificateSystem": {
+        "src": "contracts/ZKCertificateSystem.sol:29",
+        "version": {
+          "withMetadata": "934cdb4569bbb8be6c7a683d8e2ef42a32ec85d25c8c3ddb364940146b1adb55",
+          "withoutMetadata": "934cdb4569bbb8be6c7a683d8e2ef42a32ec85d25c8c3ddb364940146b1adb55",
+          "linkedWithoutMetadata": "934cdb4569bbb8be6c7a683d8e2ef42a32ec85d25c8c3ddb364940146b1adb55"
+        },
+        "inherit": [
+          "contracts/CertificateRegistry.sol:CertificateRegistry",
+          "@openzeppelin/contracts/security/ReentrancyGuard.sol:ReentrancyGuard",
+          "@openzeppelin/contracts/access/Ownable.sol:Ownable",
+          "@openzeppelin/contracts/utils/Context.sol:Context"
+        ],
+        "libraries": [],
+        "methods": [
+          "(address)",
+          "verifyAcademicAchievement((uint256[2],uint256[2][2],uint256[2]),uint256,uint256,uint256,bool)",
+          "verifyBasicCertificate((uint256[2],uint256[2][2],uint256[2]),uint256,uint256)",
+          "getBatchVerificationCount(uint256)"
+        ],
+        "linkReferences": [],
+        "errors": [
+          {
+            "kind": "constructor",
+            "contract": "ZKCertificateSystem",
+            "src": "contracts/ZKCertificateSystem.sol:40"
+          },
+          {
+            "kind": "state-variable-immutable",
+            "name": "verifier",
+            "src": "contracts/ZKCertificateSystem.sol:31"
+          }
+        ],
+        "layout": {
+          "storage": [],
+          "types": {},
+          "layoutVersion": "1.2",
+          "flat": false,
+          "namespaces": {}
+        },
+        "solcVersion": "0.8.17"
+      }
+    },
+    {
+      "@openzeppelin/contracts/access/Ownable.sol:Ownable": {
+        "src": "@openzeppelin/contracts/access/Ownable.sol:20",
+        "inherit": [
+          "@openzeppelin/contracts/utils/Context.sol:Context"
+        ],
+        "libraries": [],
+        "methods": [
+          "owner()",
+          "renounceOwnership()",
+          "transferOwnership(address)"
+        ],
+        "linkReferences": [],
+        "errors": [
+          {
+            "kind": "constructor",
+            "contract": "Ownable",
+            "src": "@openzeppelin/contracts/access/Ownable.sol:28"
+          }
+        ],
+        "layout": {
+          "storage": [
+            {
+              "contract": "Ownable",
+              "label": "_owner",
+              "type": "t_address",
+              "src": "@openzeppelin/contracts/access/Ownable.sol:21"
+            }
+          ],
+          "types": {
+            "t_address": {
+              "label": "address"
+            }
+          },
+          "layoutVersion": "1.2",
+          "flat": false,
+          "namespaces": {}
+        },
+        "solcVersion": "0.8.17"
+      },
+      "@openzeppelin/contracts/security/ReentrancyGuard.sol:ReentrancyGuard": {
+        "src": "@openzeppelin/contracts/security/ReentrancyGuard.sol:22",
+        "inherit": [],
+        "libraries": [],
+        "methods": [],
+        "linkReferences": [],
+        "errors": [
+          {
+            "kind": "constructor",
+            "contract": "ReentrancyGuard",
+            "src": "@openzeppelin/contracts/security/ReentrancyGuard.sol:39"
+          }
+        ],
+        "layout": {
+          "storage": [
+            {
+              "contract": "ReentrancyGuard",
+              "label": "_status",
+              "type": "t_uint256",
+              "src": "@openzeppelin/contracts/security/ReentrancyGuard.sol:37"
+            }
+          ],
+          "types": {
+            "t_uint256": {
+              "label": "uint256"
+            }
+          },
+          "layoutVersion": "1.2",
+          "flat": false,
+          "namespaces": {}
+        },
+        "solcVersion": "0.8.17"
+      },
+      "@openzeppelin/contracts/utils/Context.sol:Context": {
+        "src": "@openzeppelin/contracts/utils/Context.sol:16",
+        "inherit": [],
+        "libraries": [],
+        "methods": [],
+        "linkReferences": [],
+        "errors": [],
+        "layout": {
+          "storage": [],
+          "types": {},
+          "layoutVersion": "1.2",
+          "flat": false,
+          "namespaces": {}
+        },
+        "solcVersion": "0.8.17"
+      },
+      "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol:MerkleProof": {
+        "src": "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol:20",
+        "version": {
+          "withMetadata": "7e55259eb2c48913baf4a4907147a43b5a1be3338fab44d4f344dc0d67cf35d0",
+          "withoutMetadata": "7e55259eb2c48913baf4a4907147a43b5a1be3338fab44d4f344dc0d67cf35d0",
+          "linkedWithoutMetadata": "7e55259eb2c48913baf4a4907147a43b5a1be3338fab44d4f344dc0d67cf35d0"
+        },
+        "inherit": [],
+        "libraries": [],
+        "methods": [],
+        "linkReferences": [],
+        "errors": [],
+        "layout": {
+          "storage": [],
+          "types": {},
+          "layoutVersion": "1.2",
+          "flat": false,
+          "namespaces": {}
+        },
+        "solcVersion": "0.8.17"
+      },
+      "contracts/CertificateRegistry.sol:CertificateRegistry": {
+        "src": "contracts/CertificateRegistry.sol:13",
+        "version": {
+          "withMetadata": "c174b418d3af5615e6ca55218bbf354877a724cccab5fbcad3f3deefb86e32f6",
+          "withoutMetadata": "c174b418d3af5615e6ca55218bbf354877a724cccab5fbcad3f3deefb86e32f6",
+          "linkedWithoutMetadata": "c174b418d3af5615e6ca55218bbf354877a724cccab5fbcad3f3deefb86e32f6"
+        },
+        "inherit": [
+          "@openzeppelin/contracts/security/ReentrancyGuard.sol:ReentrancyGuard",
+          "@openzeppelin/contracts/access/Ownable.sol:Ownable",
+          "@openzeppelin/contracts/utils/Context.sol:Context"
+        ],
+        "libraries": [],
+        "methods": [
+          "()",
+          "setInstitutionAuthorization(address,bool)",
+          "issueBatch(bytes32,string,string,uint256,uint256)",
+          "verifyCertificate(uint256,bytes32,bytes32[])",
+          "revokeBatch(uint256)",
+          "getBatchInfo(uint256)",
+          "getTotalBatches()"
+        ],
+        "linkReferences": [],
+        "errors": [
+          {
+            "kind": "constructor",
+            "contract": "CertificateRegistry",
+            "src": "contracts/CertificateRegistry.sol:53"
+          }
+        ],
+        "layout": {
+          "storage": [
+            {
+              "contract": "CertificateRegistry",
+              "label": "batches",
+              "type": "t_mapping(t_uint256,t_struct(BatchInfo)760_storage)",
+              "src": "contracts/CertificateRegistry.sol:25"
+            },
+            {
+              "contract": "CertificateRegistry",
+              "label": "authorizedInstitutions",
+              "type": "t_mapping(t_address,t_bool)",
+              "src": "contracts/CertificateRegistry.sol:28"
+            },
+            {
+              "contract": "CertificateRegistry",
+              "label": "nextBatchId",
+              "type": "t_uint256",
+              "src": "contracts/CertificateRegistry.sol:31"
+            }
+          ],
+          "types": {
+            "t_mapping(t_uint256,t_struct(BatchInfo)760_storage)": {
+              "label": "mapping(uint256 => struct CertificateRegistry.BatchInfo)"
+            },
+            "t_uint256": {
+              "label": "uint256"
+            },
+            "t_struct(BatchInfo)760_storage": {
+              "label": "struct CertificateRegistry.BatchInfo",
+              "members": [
+                {
+                  "label": "merkleRoot",
+                  "type": "t_bytes32"
+                },
+                {
+                  "label": "institutionName",
+                  "type": "t_string_storage"
+                },
+                {
+                  "label": "courseName",
+                  "type": "t_string_storage"
+                },
+                {
+                  "label": "graduationYear",
+                  "type": "t_uint256"
+                },
+                {
+                  "label": "totalStudents",
+                  "type": "t_uint256"
+                },
+                {
+                  "label": "timestamp",
+                  "type": "t_uint256"
+                },
+                {
+                  "label": "isValid",
+                  "type": "t_bool"
+                }
+              ]
+            },
+            "t_bytes32": {
+              "label": "bytes32"
+            },
+            "t_string_storage": {
+              "label": "string"
+            },
+            "t_bool": {
+              "label": "bool"
+            },
+            "t_mapping(t_address,t_bool)": {
+              "label": "mapping(address => bool)"
+            },
+            "t_address": {
+              "label": "address"
+            }
+          },
+          "layoutVersion": "1.2",
+          "flat": false,
+          "namespaces": {}
+        },
+        "solcVersion": "0.8.17"
+      },
+      "contracts/CertificateVerifier.sol:Groth16Verifier": {
+        "src": "contracts/CertificateVerifier.sol:23",
+        "version": {
+          "withMetadata": "664f39f2f8f22c1744c84384752a5a7c2f00341d097ed8db45d1ed47952475ca",
+          "withoutMetadata": "664f39f2f8f22c1744c84384752a5a7c2f00341d097ed8db45d1ed47952475ca",
+          "linkedWithoutMetadata": "664f39f2f8f22c1744c84384752a5a7c2f00341d097ed8db45d1ed47952475ca"
+        },
+        "inherit": [],
+        "libraries": [],
+        "methods": [
+          "verifyProof(uint256[2],uint256[2][2],uint256[2],uint256[4])"
+        ],
+        "linkReferences": [],
+        "errors": [],
+        "layout": {
+          "storage": [],
+          "types": {},
+          "layoutVersion": "1.2",
+          "flat": false,
+          "namespaces": {}
+        },
+        "solcVersion": "0.8.17"
+      },
+      "contracts/IVerifier.sol:IVerifier": {
+        "src": "contracts/IVerifier.sol:16",
+        "inherit": [],
+        "libraries": [],
+        "methods": [
+          "verifyProof(uint256[2],uint256[2][2],uint256[2],uint256[4])"
+        ],
+        "linkReferences": [],
+        "errors": [],
+        "layout": {
+          "storage": [],
+          "types": {},
+          "layoutVersion": "1.2",
+          "flat": false,
+          "namespaces": {}
+        },
+        "solcVersion": "0.8.17"
+      },
+      "contracts/PlaceholderVerifier.sol:PlaceholderVerifier": {
+        "src": "contracts/PlaceholderVerifier.sol:18",
+        "version": {
+          "withMetadata": "100b4591d5b8c594b5356e25012578eaf9f75e6d32f717f5cb52aaf36f440f8e",
+          "withoutMetadata": "100b4591d5b8c594b5356e25012578eaf9f75e6d32f717f5cb52aaf36f440f8e",
+          "linkedWithoutMetadata": "100b4591d5b8c594b5356e25012578eaf9f75e6d32f717f5cb52aaf36f440f8e"
+        },
+        "inherit": [
+          "contracts/IVerifier.sol:IVerifier"
+        ],
+        "libraries": [],
+        "methods": [
+          "()",
+          "verifyProof(uint256[2],uint256[2][2],uint256[2],uint256[4])",
+          "getVersion()"
+        ],
+        "linkReferences": [],
+        "errors": [
+          {
+            "kind": "constructor",
+            "contract": "PlaceholderVerifier",
+            "src": "contracts/PlaceholderVerifier.sol:19"
+          }
+        ],
+        "layout": {
+          "storage": [],
+          "types": {},
+          "layoutVersion": "1.2",
+          "flat": false,
+          "namespaces": {}
+        },
+        "solcVersion": "0.8.17"
+      },
+      "contracts/ZKCertificateSystem.sol:ZKCertificateSystem": {
+        "src": "contracts/ZKCertificateSystem.sol:29",
+        "version": {
+          "withMetadata": "934cdb4569bbb8be6c7a683d8e2ef42a32ec85d25c8c3ddb364940146b1adb55",
+          "withoutMetadata": "934cdb4569bbb8be6c7a683d8e2ef42a32ec85d25c8c3ddb364940146b1adb55",
+          "linkedWithoutMetadata": "934cdb4569bbb8be6c7a683d8e2ef42a32ec85d25c8c3ddb364940146b1adb55"
+        },
+        "inherit": [
+          "contracts/CertificateRegistry.sol:CertificateRegistry",
+          "@openzeppelin/contracts/security/ReentrancyGuard.sol:ReentrancyGuard",
+          "@openzeppelin/contracts/access/Ownable.sol:Ownable",
+          "@openzeppelin/contracts/utils/Context.sol:Context"
+        ],
+        "libraries": [],
+        "methods": [
+          "(address)",
+          "verifyAcademicAchievement((uint256[2],uint256[2][2],uint256[2]),uint256,uint256,uint256,bool)",
+          "verifyBasicCertificate((uint256[2],uint256[2][2],uint256[2]),uint256,uint256)",
+          "getBatchVerificationCount(uint256)"
+        ],
+        "linkReferences": [],
+        "errors": [
+          {
+            "kind": "constructor",
+            "contract": "ZKCertificateSystem",
+            "src": "contracts/ZKCertificateSystem.sol:40"
+          },
+          {
+            "kind": "state-variable-immutable",
+            "name": "verifier",
+            "src": "contracts/ZKCertificateSystem.sol:31"
+          }
+        ],
+        "layout": {
+          "storage": [],
+          "types": {},
+          "layoutVersion": "1.2",
+          "flat": false,
+          "namespaces": {}
+        },
+        "solcVersion": "0.8.17"
+      }
+    }
+  ]
+}

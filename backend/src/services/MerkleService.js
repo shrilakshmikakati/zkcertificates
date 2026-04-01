@@ -61,11 +61,23 @@ class MerkleService {
             const leaf = Buffer.from(commitmentHash, 'hex');
             const root = Buffer.from(merkleRoot.replace('0x', ''), 'hex');
 
-            // Convert proof format
-            const proofElements = proof.map(element => ({
-                data: Buffer.from(element.replace('0x', ''), 'hex'),
-                position: 'left' // This would need position info in real implementation
-            }));
+            // FIX: preserve actual { data, position } from stored proof objects.
+            // Previously 'position' was always hardcoded to 'left', which caused
+            // every proof to fail regardless of the actual tree structure.
+            const proofElements = proof.map(element => {
+                if (element && typeof element === 'object' && element.data) {
+                    // Standard stored format: { data: hexString, position: 'left'|'right' }
+                    return {
+                        data: Buffer.from(element.data.replace('0x', ''), 'hex'),
+                        position: element.position || 'left'
+                    };
+                }
+                // Legacy flat hex string — position unknown, default left
+                return {
+                    data: Buffer.from(String(element).replace('0x', ''), 'hex'),
+                    position: 'left'
+                };
+            });
 
             const hashFunction = (data) => crypto.createHash('sha256').update(data).digest();
             return MerkleTree.verify(proofElements, leaf, root, hashFunction);

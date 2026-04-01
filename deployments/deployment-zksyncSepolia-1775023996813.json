@@ -1,0 +1,20 @@
+{
+  "network": "zksyncSepolia",
+  "chainId": 300,
+  "deployer": "0x302E0D5e78E1CCaF1b74608A0CF5E4606bf90562",
+  "timestamp": "2026-04-01T06:13:16.813Z",
+  "note": "Using existing deployed contracts from .env configuration",
+  "contracts": {
+    "CertificateVerifier": {
+      "address": "0x916EB2a08E26Dc010a316863C88A2ee096CfBDbb",
+      "type": "PlaceholderVerifier"
+    },
+    "CertificateRegistry": {
+      "address": "0xbB8E2077876257F56B8384A16791557373F8D605",
+      "note": "Same as ZKCertificateSystem"
+    },
+    "ZKCertificateSystem": {
+      "address": "0x38CC5B88479fDA698bCBF53778a42c099992Df5f"
+    }
+  }
+}

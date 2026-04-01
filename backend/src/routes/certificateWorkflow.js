@@ -491,6 +491,18 @@ router.post('/generate-pdf', async (req, res) => {
 /**
  * @route POST /api/workflow/deploy
  * @desc Step 4: Deploy certificates to blockchain using real smart contracts
+ *
+ * NOTE — zkSync Explorer "Unable to decode input data":
+ * This is NOT a code error. It means the contract source has not been verified
+ * on the block explorer. The transaction succeeds regardless.
+ * To fix the explorer display, run ONCE after deployment:
+ *
+ *   npx hardhat verify --network zksyncSepholia <CONTRACT_ADDRESS>
+ *
+ * If using @matterlabs/hardhat-zksync-verify, you may also need:
+ *   npx hardhat verify --network zksyncSepholia <CONTRACT_ADDRESS> [constructorArgs...]
+ *
+ * This uploads ABI + source to the explorer so calldata is human-readable.
  */
 router.post('/deploy', async (req, res) => {
     try {
@@ -1708,6 +1720,10 @@ router.get('/retrieve', async (req, res) => {
             blockNumber:       dep.blockNumber       || certificates[0]?.blockNumber,
             blockHash:         dep.blockHash,
             gasUsed:           dep.gasUsed,
+            // FIX: always expose finalMerkleRoot as the canonical merkleRoot.
+            // Stored merkleProof/leafHash on each certificate were generated against
+            // finalMerkleRoot (post-tx). Using the pre-deployment merkleRoot here
+            // caused the frontend Merkle verification to always report "Failed".
             merkleRoot:        dep.finalMerkleRoot   || dep.merkleRoot || certificates[0]?.merkleRoot,
             totalCertificates: dep.totalCertificates,
             deployedAt:        dep.deployedAt,

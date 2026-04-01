@@ -161,13 +161,28 @@ export default function Retrieve() {
                 const results = [];
 
                 for (const cert of certList) {
-                    const proofData   = cert.zkProof?.proof || cert.zkProof;
-                    const structureOk = validateZKProofFormat(proofData);
+                    // FIX: use the authoritative zkProofVerified flag saved by the server
+                    // during /deploy (which knows whether circuits were compiled and proofs
+                    // actually succeeded).  Only fall back to client-side structure check when
+                    // the flag is absent — e.g. older records written before this field existed.
+                    let structureOk;
+                    if (typeof cert.zkProofVerified === 'boolean') {
+                        structureOk = cert.zkProofVerified;
+                    } else {
+                        const proofData = cert.zkProof?.proof || cert.zkProof;
+                        structureOk = validateZKProofFormat(proofData);
+                    }
 
                     let merkleOk = false;
                     let merkleError = '';
                     if (cert.merkleProof?.length && cert.leafHash) {
-                        const root = cert.merkleRoot || record.merkleRoot;
+                        // FIX: The stored merkleProof/leafHash were built against finalMerkleRoot
+                        // (post-deployment, includes tx details).  Always prefer finalMerkleRoot
+                        // from the deployment record; fall back to the certificate-level merkleRoot.
+                        // Using the pre-deployment merkleRoot here caused guaranteed mismatches.
+                        const root =
+                            record.merkleRoot ||   // already resolved to finalMerkleRoot by /retrieve API fix
+                            cert.merkleRoot;
                         if (root) {
                             try {
                                 merkleOk = await verifyMerkleProof(cert.leafHash, cert.merkleProof, root);
@@ -186,7 +201,9 @@ export default function Retrieve() {
                         else if (!cert.leafHash) merkleError = 'Missing leaf hash.';
                     }
 
-                    const hasProofData  = proofData != null;
+                    const hasProofData  = typeof cert.zkProofVerified === 'boolean'
+                        ? true  // server explicitly recorded a proof decision
+                        : (cert.zkProof?.proof || cert.zkProof) != null;
                     const hasMerkleData = cert.merkleProof?.length > 0 && !!cert.leafHash;
                     const certValid     = (!hasProofData && !hasMerkleData) ? true : (structureOk || merkleOk);
 

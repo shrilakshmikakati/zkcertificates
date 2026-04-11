@@ -1,4 +1,4 @@
-#Nitminer Certificates
+# Nitminer Certificates
 
 This project is to generate certificates and store on **Ethereum Chain** and there is **Layer 2 ZkSync Integration**.
 

@@ -67,6 +67,6 @@ const certificateSchema = new mongoose.Schema({
 // Index for faster queries
 certificateSchema.index({ certificateId: 1, deploymentId: 1 });
 certificateSchema.index({ status: 1, createdAt: -1 });
-certificateSchema.index({ transactionHash: 1 });
+
 
 module.exports = mongoose.models.Certificate || mongoose.model('Certificate', certificateSchema);

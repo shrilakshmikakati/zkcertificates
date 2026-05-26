@@ -141,7 +141,7 @@ async function main() {
     console.log(`📅 Deployed: ${deploymentRecord.timestamp}`);
 
     console.log(`\n📝 Next Steps:`);
-    console.log(`   1. Verify contracts on zkSync explorer: https://sepolia.era.zksync.io`);
+    console.log(`   1. Verify contracts on zkSync explorer: https://sepolia.explorer.zksync.io`);
     console.log(`   2. Update frontend with new contract addresses`);
     console.log(`   3. Update backend configuration`);
 
